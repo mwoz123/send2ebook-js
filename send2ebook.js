@@ -9,46 +9,45 @@ const absolutify = require('absolutify')
 const URL = require('url');
 
 
+const fileExt = ".epub";
+
 class Send2Ebook {
 
+  constructor({ host, user, pass, port, folder }) {
+    this.host = host;
+    this.user = user;
+    this.pass = pass;
+    this.port = port ? port : 21;
+    this.folder = folder ? folder : "/";
+  }
+  
 
-
-  process(url, { host, port, user, pass, folder }) {
-
+  process(url) {
 
     axios.get(url)
       .then(response => {
-
-
-
-        const cleanedHTML = this.sanitarizeData(url, response);
-
-        const dom = new JSDOM(cleanedHTML);
-        const docTitle = dom.window.document.head.querySelector("title").text;
-
-        const saveName = this.sanitarizeName(docTitle);
-
-        this.convertToEpub(cleanedHTML, { host, port, user, pass, folder }, saveName);
-        
-
-      })
-      .catch(error => {
-        console.log(error);
+        return this.sanitarizeData(url, response)
+      }).then(cleanedHTML => {
+  
+        return this.convertToEpub( cleanedHTML, this);
+      }).then( ()=> {
+        this.saveToFtp(this);
       });
   }
+
+
 
 
 
   sanitarizeData(url, response) {
     const location = URL.parse(url);
     const site = `${location.protocol}//${location.host}`;
-    var parsed = absolutify(response.data, site);
+    let parsed = absolutify(response.data, site);
 
     parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
 
     parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
 
-    const dom = new JSDOM(parsed);
     const cleanedHTML = sanitizeHtml(parsed, {
       allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title']),
       preserveDoctypes: true
@@ -60,38 +59,43 @@ class Send2Ebook {
     return str.replace(/[^\w\s]/gm, "_");
   }
 
-  convertToEpub(data, { host, port, user, pass, folder }, saveName) {
-    var option = {
+  convertToEpub(cleanedHTML, _this) {
+
+    const dom = new JSDOM(cleanedHTML);
+    const docTitle = dom.window.document.head.querySelector("title").text;
+
+    const saveName = this.sanitarizeName(docTitle);
+
+    const option = {
       title: saveName,
       author: "Send2Ebook",
       content: [
         {
-          data
+          data: cleanedHTML
         },
       ]
     };
-    const localFileName = saveName + ".epub";
-    new Epub(option, localFileName).promise.then(
-      (x) => {
-        console.log("done epub " + x);
+    _this.localFileName = saveName + fileExt;
+    return new Epub(option, _this.localFileName).promise ;
 
-        const remotePath = `${folder}/${localFileName}`
-        const ftp = new jsftp({ host, port, user, pass });
-        ftp.put(localFileName, remotePath, function (err) {
-            if (err)
-              throw err
-            console.log(`succesfully send to ${host}`);
-            ftp.destroy();
+  }
 
-            fs.unlink(localFileName, (err) => {
-              if (err) throw err;
-              console.log(`${localFileName} was removed from local filesystem`);
-            });
-          });
-
-    },
-      (y) => console.log("error creating Epub " + y));
+  saveToFtp() {
+    console.log("saving to ftp " + this.host) ;
+    const remotePath = this.folder + this.localFileName;
+    let localFileName = this.localFileName;
+    const ftp = new jsftp({ host: this.host, port: this.port, user: this.user, pass: this.pass });
+    ftp.put(this.localFileName, remotePath, function (err) {
+      if (err)
+        throw err;
+      console.log('succesfully send to  ');
+      ftp.destroy();
+      fs.unlink(localFileName, (err) => {
+        if (err)
+          throw err;
+        console.log(localFileName +' was removed from local filesystem');
+      });
+    });
   }
 }
-
 module.exports = Send2Ebook;
