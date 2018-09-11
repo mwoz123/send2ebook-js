@@ -1,0 +1,23 @@
+{
+    "name": "send2ebook",
+    "preferGlobal": true,
+    "version": "0.0.1",
+    "author": "<mwoz123@github.com>",
+    "description": "todo",
+    "license": "LGPL",
+    "engines": {
+        "node": ">=0.10"
+    },
+    "scripts": {
+        "start": "node ./app.js",
+        "debug": "node --inspect --inspect-brk ./app.js"
+    },
+    "dependencies": {
+        "epub-gen": "~0.0.20",
+        "jsftp": "~2.1.3",
+        "jsdom": "~11.11.0",
+        "axios": "~0.18.0",
+        "sanitize-html": "~1.18.2",
+        "absolutify": "~0.1.0"
+    }
+}
