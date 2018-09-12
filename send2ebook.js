@@ -12,36 +12,70 @@ const fileExt = ".epub";
 
 class Send2Ebook {
 
-  constructor({ host, user, pass, port, folder }) {
+  constructor({ host, user, pass, port = 21, folder = "/" }) {
     this.host = host;
     this.user = user;
     this.pass = pass;
-    this.port = port ? port : 21;
-    this.folder = folder ? folder : "/";
+    this.port = port;
+    this.folder = folder;
   }
+
+
+  async process([...urls]) {
+
+    const saveName = "ABC-test"
+    const option = {
+      title: saveName,
+      author: "Send2Ebook",
+      content: []
+    }
+
+    for (let i = 0; i < urls.length; i++) {
+      // url.forEach(value => {
+      let url = urls[i];
+      console.log(url);
+      let response;
+      try {
+        response = await axios.get(url);
+      } catch (err) {
+        console.log(err);
+        throw err;
+      }
+
+      const dom = new JSDOM(response.data);
+      const docTitle = dom.window.document.head.querySelector("title").text;
+
+      let cleanedHtml;
+      try {
+        cleanedHtml = await this.sanitarizeData(url, response);
+      }catch (err) {
+        console.log(err);
+        throw err;
+      }
+      
   
 
-  async process(url) {
+      // const saveName = this.sanitarizeName(docTitle);
 
-    let response ;
-    try {
-      response = await axios.get(url);
-    }catch (err ) {
-      console.log(err);
-      throw err;
-    }
-    
-    const cleanedHtml = this.sanitarizeData(url, response);
+      option.content.push({
+        title: docTitle,
+        data: cleanedHtml
+      })
+
+
+    };
+    let localFileName = saveName + fileExt;
+    // let localFileName = "ABC-etes" + fileExt;
+    await new Epub(option, localFileName).promise;
+
+
+
+
+
 
     try {
-      await this.convertToEpub(cleanedHtml, this);
-    }catch (err){
-      console.log(err);
-      throw err;
-    }
-    try {
-      await this.saveToFtp(this);
-    }catch (err){
+      await this.saveToFtp(localFileName);
+    } catch (err) {
       console.log(err);
       throw err;
     }
@@ -51,7 +85,7 @@ class Send2Ebook {
 
 
 
-  sanitarizeData(url, response) {
+  async sanitarizeData(url, response) {
     const location = URL.parse(url);
     const site = `${location.protocol}//${location.host}`;
     let parsed = absolutify(response.data, site);
@@ -60,7 +94,7 @@ class Send2Ebook {
 
     parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
 
-    const cleanedHTML = sanitizeHtml(parsed, {
+    const cleanedHTML = await sanitizeHtml(parsed, {
       allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title']),
       preserveDoctypes: true
     });
@@ -71,33 +105,16 @@ class Send2Ebook {
     return str.replace(/[^\w\s]/gm, "_");
   }
 
-  convertToEpub(cleanedHTML, _this) {
 
-    const dom = new JSDOM(cleanedHTML);
-    const docTitle = dom.window.document.head.querySelector("title").text;
 
-    const saveName = this.sanitarizeName(docTitle);
 
-    const option = {
-      title: saveName,
-      author: "Send2Ebook",
-      content: [
-        {
-          data: cleanedHTML
-        },
-      ]
-    };
-    _this.localFileName = saveName + fileExt;
-    return new Epub(option, _this.localFileName).promise ;
 
-  }
-
-  saveToFtp() {
-    console.log("saving to ftp " + this.host) ;
-    const remotePath = this.folder + this.localFileName;
-    let localFileName = this.localFileName;
+  saveToFtp(localFileName) {
+    console.log("saving to ftp " + this.host);
+    const remotePath = this.folder + localFileName;
+    // let localFileName = this.localFileName;
     const ftp = new jsftp({ host: this.host, port: this.port, user: this.user, pass: this.pass });
-    ftp.put(this.localFileName, remotePath, function (err) {
+    ftp.put(localFileName, remotePath, function (err) {
       if (err)
         throw err;
       console.log('succesfully send to ftp ');
@@ -105,7 +122,7 @@ class Send2Ebook {
       fs.unlink(localFileName, (err) => {
         if (err)
           throw err;
-        console.log(localFileName +' was removed from local filesystem');
+        console.log(localFileName + ' was removed from local filesystem');
       });
     });
   }
