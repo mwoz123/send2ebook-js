@@ -23,7 +23,7 @@ class Send2Ebook {
 
   async process([...urls]) {
 
-    const saveName = "ABC-test"
+    const saveName = "ABC2-test"
     const option = {
       title: saveName,
       author: "Send2Ebook",
@@ -66,7 +66,13 @@ class Send2Ebook {
     };
     let localFileName = saveName + fileExt;
     // let localFileName = "ABC-etes" + fileExt;
-    await new Epub(option, localFileName).promise;
+    try {
+      await new Epub(option, localFileName).promise;
+    }catch (err) {
+      console.log(err);
+      throw err;
+    }
+    
 
 
 
@@ -88,17 +94,18 @@ class Send2Ebook {
   async sanitarizeData(url, response) {
     const location = URL.parse(url);
     const site = `${location.protocol}//${location.host}`;
-    let parsed = absolutify(response.data, site);
+    let parsed =  absolutify(response.data, site);
 
     parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
 
     parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
 
-    const cleanedHTML = await sanitizeHtml(parsed, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title']),
-      preserveDoctypes: true
-    });
-    return cleanedHTML;
+    // const cleanedHtml = await sanitizeHtml(parsed, {
+    //   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title']),
+    //   preserveDoctypes: true
+    // });
+    // return cleanedHtml;
+    return parsed;
   }
 
   sanitarizeName(str) {
