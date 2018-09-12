@@ -1,6 +1,5 @@
 const jsftp = require("jsftp");
 const fs = require("fs");
-
 const { JSDOM } = require("jsdom");
 const axios = require('axios');
 const sanitizeHtml = require('sanitize-html');
@@ -22,17 +21,30 @@ class Send2Ebook {
   }
   
 
-  process(url) {
+  async process(url) {
 
-    axios.get(url)
-      .then(response => {
-        return this.sanitarizeData(url, response)
-      }).then(cleanedHTML => {
-  
-        return this.convertToEpub( cleanedHTML, this);
-      }).then( ()=> {
-        this.saveToFtp(this);
-      });
+    let response ;
+    try {
+      response = await axios.get(url);
+    }catch (err ) {
+      console.log(err);
+      throw err;
+    }
+    
+    const cleanedHtml = this.sanitarizeData(url, response);
+
+    try {
+      await this.convertToEpub(cleanedHtml, this);
+    }catch (err){
+      console.log(err);
+      throw err;
+    }
+    try {
+      await this.saveToFtp(this);
+    }catch (err){
+      console.log(err);
+      throw err;
+    }
   }
 
 
@@ -88,7 +100,7 @@ class Send2Ebook {
     ftp.put(this.localFileName, remotePath, function (err) {
       if (err)
         throw err;
-      console.log('succesfully send to  ');
+      console.log('succesfully send to ftp ');
       ftp.destroy();
       fs.unlink(localFileName, (err) => {
         if (err)
