@@ -30,6 +30,8 @@ class Send2Ebook {
       content: []
     }
 
+    const errors = new Map(); 
+
     for (let i = 0; i < urls.length; i++) {
       // url.forEach(value => {
       let url = urls[i];
@@ -38,8 +40,8 @@ class Send2Ebook {
       try {
         response = await axios.get(url);
       } catch (err) {
-        console.log(err);
-        throw err;
+        errors.set(url, err);
+        continue;
       }
 
       const dom = new JSDOM(response.data);
@@ -49,12 +51,10 @@ class Send2Ebook {
       try {
         cleanedHtml = await this.sanitarizeData(url, response);
       }catch (err) {
-        console.log(err);
-        throw err;
+        errors.set(url, err);
+        continue;
       }
       
-  
-
       // const saveName = this.sanitarizeName(docTitle);
 
       option.content.push({
@@ -64,6 +64,7 @@ class Send2Ebook {
 
 
     };
+
     let localFileName = saveName + fileExt;
     // let localFileName = "ABC-etes" + fileExt;
     try {
@@ -74,17 +75,16 @@ class Send2Ebook {
     }
     
 
-
-
-
-
-
     try {
       await this.saveToFtp(localFileName);
     } catch (err) {
       console.log(err);
       throw err;
     }
+
+
+    errors.forEach((err, url) =>  console.error(`${err} for url: ${url}`));
+ 
   }
 
 
