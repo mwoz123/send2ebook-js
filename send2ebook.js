@@ -21,21 +21,20 @@ class Send2Ebook {
   }
 
 
-  async process([...urls]) {
+  async process([...urls], outputname = new Date().toISOString().substr(0, 18)) {
 
-    const saveName = "ABC2-test"
     const option = {
-      title: saveName,
+      title: outputname,
       author: "Send2Ebook",
       content: []
     }
 
-    const errors = new Map(); 
+    const errors = new Map();
 
     for (let i = 0; i < urls.length; i++) {
       // url.forEach(value => {
       let url = urls[i];
-      console.log(url);
+      console.log(`Processing: ${url}`);
       let response;
       try {
         response = await axios.get(url);
@@ -50,43 +49,37 @@ class Send2Ebook {
       let cleanedHtml;
       try {
         cleanedHtml = await this.sanitarizeData(url, response);
-      }catch (err) {
+      } catch (err) {
         errors.set(url, err);
         continue;
       }
-      
-      // const saveName = this.sanitarizeName(docTitle);
 
       option.content.push({
         title: docTitle,
-        data: cleanedHtml
+        data: cleanedHtml,
+        author: url
       })
-
-
     };
 
-    let localFileName = saveName + fileExt;
-    // let localFileName = "ABC-etes" + fileExt;
-    try {
-      await new Epub(option, localFileName).promise;
-    }catch (err) {
-      console.log(err);
-      throw err;
+    if (option.content.length > 0) {
+      let localFileName = outputname + fileExt;
+      try {
+        await new Epub(option, localFileName).promise;
+      } catch (err) {
+        throw err;
+      }
+
+
+      try {
+        await this.saveToFtpAndRemoveFromDisk(localFileName);
+      } catch (err) {
+        throw err;
+      }
     }
-    
 
-    try {
-      await this.saveToFtp(localFileName);
-    } catch (err) {
-      console.log(err);
-      throw err;
-    }
+    errors.forEach((err, url) => console.error(`${err} for url: ${url}`));
 
-
-    errors.forEach((err, url) =>  console.error(`${err} for url: ${url}`));
- 
   }
-
 
 
 
@@ -94,7 +87,7 @@ class Send2Ebook {
   async sanitarizeData(url, response) {
     const location = URL.parse(url);
     const site = `${location.protocol}//${location.host}`;
-    let parsed =  absolutify(response.data, site);
+    let parsed = absolutify(response.data, site);
 
     parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
 
@@ -116,7 +109,7 @@ class Send2Ebook {
 
 
 
-  saveToFtp(localFileName) {
+  saveToFtpAndRemoveFromDisk(localFileName) {
     console.log("saving to ftp " + this.host);
     const remotePath = this.folder + localFileName;
     // let localFileName = this.localFileName;
@@ -126,6 +119,7 @@ class Send2Ebook {
         throw err;
       console.log('succesfully send to ftp ');
       ftp.destroy();
+
       fs.unlink(localFileName, (err) => {
         if (err)
           throw err;
@@ -134,4 +128,5 @@ class Send2Ebook {
     });
   }
 }
+
 module.exports = Send2Ebook;
