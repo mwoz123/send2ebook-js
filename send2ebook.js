@@ -21,7 +21,7 @@ class Send2Ebook {
   }
 
 
-  async process([...urls], outputname = new Date().toISOString().substr(0, 18)) {
+  async process([...urls], outputname = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".")) {
 
     const option = {
       title: outputname,
