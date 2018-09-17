@@ -32,7 +32,7 @@ class Send2Ebook {
     const errors = new Map();
 
     for (let i = 0; i < urls.length; i++) {
-      // url.forEach(value => {
+      // await url.forEach(url=> {
       let url = urls[i];
       console.log(`Processing: ${url}`);
       let response;
@@ -59,7 +59,8 @@ class Send2Ebook {
         data: cleanedHtml,
         author: url
       })
-    };
+      // });
+    }
 
     if (option.content.length > 0) {
       let localFileName = outputname + fileExt;
@@ -71,13 +72,13 @@ class Send2Ebook {
 
 
       try {
-        await this.saveToFtpAndRemoveFromDisk(localFileName);
+        // await this.saveToFtpAndRemoveFromDisk(localFileName);
       } catch (err) {
         throw err;
       }
     }
 
-    errors.forEach((err, url) => console.error(`${err} for url: ${url}`));
+    errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
   }
 
@@ -93,12 +94,15 @@ class Send2Ebook {
 
     parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
 
-    // const cleanedHtml = await sanitizeHtml(parsed, {
-    //   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title']),
-    //   preserveDoctypes: true
-    // });
-    // return cleanedHtml;
-    return parsed;
+    const cleanedHtml = await sanitizeHtml(parsed, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title' , 'article' ,'style']),
+      preserveDoctypes: true,
+      allowProtocolRelative: false,
+      exclusiveFilter: function (frame) {
+        return frame.tag === 'img' && !frame.attribs.src; //fix exception when empty <img /> 
+      }
+    });
+    return cleanedHtml;
   }
 
   sanitarizeName(str) {
