@@ -6,6 +6,7 @@ const sanitizeHtml = require('sanitize-html');
 const Epub = require("epub-gen")
 const absolutify = require('absolutify')
 const URL = require('url');
+const tidy = require('htmltidy2').tidy;
 
 class Send2Ebook {
 
@@ -107,7 +108,18 @@ class Send2Ebook {
         return frame.tag === 'img' && !frame.attribs.src; //fix exception when empty <img /> 
       }
     });
-    return cleanedHtml;
+
+
+    const validHtml = await new Promise((resolve, reject) => {
+      tidy(cleanedHtml, async (err, html) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(html);
+        }
+      });
+    });
+    return validHtml;
   }
 
   sanitarizeName(str) {
@@ -116,9 +128,9 @@ class Send2Ebook {
 
 
   saveToFtpAndRemoveFromDisk(localFileName) {
-    console.log("saving to ftp " + this.host);
+    console.log("saving to ftp " + this.connectionSettings.host);
     const remotePath = this.connectionSettings.folder + localFileName;
-    // let localFileName = this.localFileName;
+
     const ftp = new jsftp(this.connectionSettings);
     ftp.put(localFileName, remotePath, function (err) {
       if (err)
