@@ -7,9 +7,6 @@ const Epub = require("epub-gen")
 const absolutify = require('absolutify')
 const URL = require('url');
 
-
-const fileExt = ".epub";
-
 class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
@@ -22,60 +19,78 @@ class Send2Ebook {
 
 
   async process([...urls], outputname) {
-
+    
+    const fileExt = ".epub";
     const errors = new Map();
     const option = {
       author: "Send2Ebook",
       content: []
     }
 
-    await Promise.all(urls.map(async (url) => {
+    await this.gatherEbookData(urls, outputname, option, errors);
 
+    errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
+
+    if (option.content.length > 0) {
+
+      this.obtainTitle(outputname, option);
+
+      this.createEbookSaveToFtp(option, fileExt);
+    }
+  }
+
+
+
+
+  async createEbookSaveToFtp(option, fileExt) {
+    const localFileName = this.sanitarizeName(option.title) + fileExt;
+    try {
+      await new Epub(option, localFileName).promise;
+      this.saveToFtpAndRemoveFromDisk(localFileName);
+    }
+    catch (err) {
+      throw err;
+    }
+  }
+
+  obtainTitle(outputname, option) {
+    if (outputname) {
+      option.title = outputname;
+    }
+    else if (!option.title) {
+      option.title = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
+    }
+  }
+
+  async gatherEbookData(urls, outputname, option, errors) {
+    
+    await Promise.all(urls.map(async (url) => {
       console.log(`Processing: ${url}`);
       try {
         const response = await axios.get(url);
         const dom = new JSDOM(response.data);
         const docTitle = dom.window.document.head.querySelector("title").text;
 
-        if (urls.length == 1 && !outputname) {
-          option.title = docTitle;
-        }
-
+        this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
+        
         const cleanedHtml = await this.sanitarizeData(url, response);
-
         option.content.push({
           title: docTitle,
           data: cleanedHtml,
           author: url
-        })
-      } catch (err) {
+        });
+      }
+      catch (err) {
         errors.set(url, err);
       }
     }));
-
-    errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
-
-    if (option.content.length > 0) {
-
-      if (outputname) {
-        option.title = outputname;
-      } else if (!option.title) {
-        option.title = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
-      }
-
-
-      const localFileName = this.sanitarizeName(option.title) + fileExt;
-      try {
-        await new Epub(option, localFileName).promise;
-        this.saveToFtpAndRemoveFromDisk(localFileName);
-      } catch (err) {
-        throw err;
-      }
-    }
   }
 
-
-
+  ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle) {
+    if (urls.length == 1 && !outputname) {
+      option.title = docTitle;
+    }
+  }
 
   async sanitarizeData(url, response) {
     const location = URL.parse(url);
