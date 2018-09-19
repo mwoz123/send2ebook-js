@@ -1,18 +1,19 @@
 const Parser = require('rss-parser');
 const Send2Ebook = require('./send2ebook.js')
 
-let connectionSettings; //FIXME move to instance
-
 class Send2EbookRssAtom {
 
     constructor({ host, user, pass, port = 21, folder = "/" }) {
-        connectionSettings = {
+        this.connectionSettings = {
             host, user, pass, port, folder
         }
     }
 
     async process([...data]) {
-        let dateAndTime = this.dateAndTime() ;
+        
+        const dateAndTime = this.dateAndTime() ;
+        const connectionSettings = this.connectionSettings;
+
         data.map(async function ({url, limit})  {
 
             const urls = [];
@@ -28,7 +29,7 @@ class Send2EbookRssAtom {
             }
 
             const send2ebook = new Send2Ebook(connectionSettings);
-            send2ebook.process(urls, feed.title ); //TODO feed.title + dateAndTime()
+            send2ebook.process(urls, `${feed.title}_${dateAndTime}`); 
 
         });
 
@@ -40,3 +41,4 @@ class Send2EbookRssAtom {
     }
 }
 module.exports = Send2EbookRssAtom;
+
