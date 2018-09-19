@@ -36,6 +36,8 @@ class Send2Ebook {
       this.obtainTitle(outputname, option);
 
       this.createEbookSaveToFtp(option, fileExt);
+    }else {
+      throw ("Can't create Epub without context.");
     }
   }
 
