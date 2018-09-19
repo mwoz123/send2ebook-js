@@ -21,22 +21,26 @@ class Send2Ebook {
   }
 
 
-  async process([...urls], outputname = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".")) {
-    
+  async process([...urls], outputname) {
+
     const errors = new Map();
     const option = {
-      title: outputname,
       author: "Send2Ebook",
       content: []
     }
 
-    const ebookData = await Promise.all(urls.map(async (url) => {
+    await Promise.all(urls.map(async (url) => {
 
       console.log(`Processing: ${url}`);
       try {
         const response = await axios.get(url);
         const dom = new JSDOM(response.data);
         const docTitle = dom.window.document.head.querySelector("title").text;
+
+        if (urls.length == 1 && !outputname) {
+          option.title = docTitle;
+        }
+
         const cleanedHtml = await this.sanitarizeData(url, response);
 
         option.content.push({
@@ -47,12 +51,20 @@ class Send2Ebook {
       } catch (err) {
         errors.set(url, err);
       }
-     }));
+    }));
 
     errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
-    
+
     if (option.content.length > 0) {
-      let localFileName = outputname + fileExt;
+
+      if (outputname) {
+        option.title = outputname;
+      } else if (!option.title) {
+        option.title = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
+      }
+
+
+      const localFileName = this.sanitarizeName(option.title) + fileExt;
       try {
         await new Epub(option, localFileName).promise;
         this.saveToFtpAndRemoveFromDisk(localFileName);
@@ -75,7 +87,7 @@ class Send2Ebook {
     parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
 
     const cleanedHtml = await sanitizeHtml(parsed, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title' , 'article' ,'style']),
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title', 'article', 'style']),
       preserveDoctypes: true,
       allowProtocolRelative: false,
       exclusiveFilter: function (frame) {
@@ -88,9 +100,6 @@ class Send2Ebook {
   sanitarizeName(str) {
     return str.replace(/[^\w\s]/gm, "_");
   }
-
-
-
 
 
   saveToFtpAndRemoveFromDisk(localFileName) {
