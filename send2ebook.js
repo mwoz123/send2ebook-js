@@ -10,16 +10,14 @@ const URL = require('url');
 class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
-    this.host = host;
-    this.user = user;
-    this.pass = pass;
-    this.port = port;
-    this.folder = folder;
+    this.connectionSettings = {
+      host, user, pass, port, folder
+    }
   }
 
 
   async process([...urls], outputname) {
-    
+
     const fileExt = ".epub";
     const errors = new Map();
     const option = {
@@ -63,7 +61,7 @@ class Send2Ebook {
   }
 
   async gatherEbookData(urls, outputname, option, errors) {
-    
+
     await Promise.all(urls.map(async (url) => {
       console.log(`Processing: ${url}`);
       try {
@@ -72,7 +70,7 @@ class Send2Ebook {
         const docTitle = dom.window.document.head.querySelector("title").text;
 
         this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
-        
+
         const cleanedHtml = await this.sanitarizeData(url, response);
         option.content.push({
           title: docTitle,
@@ -119,9 +117,9 @@ class Send2Ebook {
 
   saveToFtpAndRemoveFromDisk(localFileName) {
     console.log("saving to ftp " + this.host);
-    const remotePath = this.folder + localFileName;
+    const remotePath = this.connectionSettings.folder + localFileName;
     // let localFileName = this.localFileName;
-    const ftp = new jsftp({ host: this.host, port: this.port, user: this.user, pass: this.pass });
+    const ftp = new jsftp(this.connectionSettings);
     ftp.put(localFileName, remotePath, function (err) {
       if (err)
         throw err;
