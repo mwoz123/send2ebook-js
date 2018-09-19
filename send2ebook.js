@@ -22,64 +22,44 @@ class Send2Ebook {
 
 
   async process([...urls], outputname = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".")) {
-
+    
+    const errors = new Map();
     const option = {
       title: outputname,
       author: "Send2Ebook",
       content: []
     }
 
-    const errors = new Map();
+    const ebookData = await Promise.all(urls.map(async (url) => {
 
-    for (let i = 0; i < urls.length; i++) {
-      // await url.forEach(url=> {
-      let url = urls[i];
       console.log(`Processing: ${url}`);
-      let response;
       try {
-        response = await axios.get(url);
+        const response = await axios.get(url);
+        const dom = new JSDOM(response.data);
+        const docTitle = dom.window.document.head.querySelector("title").text;
+        const cleanedHtml = await this.sanitarizeData(url, response);
+
+        option.content.push({
+          title: docTitle,
+          data: cleanedHtml,
+          author: url
+        })
       } catch (err) {
         errors.set(url, err);
-        continue;
-      }
-
-      const dom = new JSDOM(response.data);
-      const docTitle = dom.window.document.head.querySelector("title").text;
-
-      let cleanedHtml;
-      try {
-        cleanedHtml = await this.sanitarizeData(url, response);
-      } catch (err) {
-        errors.set(url, err);
-        continue;
-      }
-
-      option.content.push({
-        title: docTitle,
-        data: cleanedHtml,
-        author: url
-      })
-      // });
-    }
-
-    if (option.content.length > 0) {
-      let localFileName = outputname + fileExt;
-      try {
-        await new Epub(option, localFileName).promise;
-      } catch (err) {
-        throw err;
-      }
-
-
-      try {
-        // await this.saveToFtpAndRemoveFromDisk(localFileName);
-      } catch (err) {
-        throw err;
       }
     }
 
     errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
-
+    
+    if (option.content.length > 0) {
+      let localFileName = outputname + fileExt;
+      try {
+        await new Epub(option, localFileName).promise;
+        this.saveToFtpAndRemoveFromDisk(localFileName);
+      } catch (err) {
+        throw err;
+      }
+    }
   }
 
 
