@@ -47,7 +47,7 @@ class Send2Ebook {
       } catch (err) {
         errors.set(url, err);
       }
-    }
+     }));
 
     errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
     
