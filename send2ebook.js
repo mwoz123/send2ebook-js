@@ -1,3 +1,4 @@
+'use strict';
 const jsftp = require("jsftp");
 const fs = require("fs");
 const { JSDOM } = require("jsdom");

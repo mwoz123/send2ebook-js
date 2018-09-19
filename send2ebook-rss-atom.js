@@ -1,3 +1,4 @@
+'use strict';
 const Parser = require('rss-parser');
 const Send2Ebook = require('./send2ebook.js')
 
@@ -9,34 +10,27 @@ class Send2EbookRssAtom {
         }
     }
 
-    async process([...data]) {
-        
-        const dateAndTime = this.dateAndTime() ;
+    async process([...rssOrAtomUrlAndLimit]) {
+
+        const dateAndTime = this.dateAndTime();
         const connectionSettings = this.connectionSettings;
 
-        data.map(async function ({url, limit})  {
+        rssOrAtomUrlAndLimit.map(async ({ url, limit }) => {
 
-            const urls = [];
             const parser = new Parser();
-            let feed = await parser.parseURL(url);
-            
-            console.log(feed.title);
+            const feed = await parser.parseURL(url);
 
-            for (let i = 0; i < limit; i++) {
-                let item = feed.items[i];
-                console.log(item.title + ':' + item.link)
-                urls.push(item.link);
-            }
+            const urlsToBeProcessed = feed.items.slice(0, limit).map(a => a.link);
 
             const send2ebook = new Send2Ebook(connectionSettings);
-            send2ebook.process(urls, `${feed.title}_${dateAndTime}`); 
+            send2ebook.process(urlsToBeProcessed, `${feed.title}_${dateAndTime}`);
 
         });
 
     }
 
 
-    dateAndTime(){
+    dateAndTime() {
         return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
     }
 }
