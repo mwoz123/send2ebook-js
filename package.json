@@ -19,6 +19,7 @@
         "axios": "~0.18.0",
         "sanitize-html": "~1.18.2",
         "absolutify": "~0.1.0",
-        "rss-parser": "~3.4.3"
+        "rss-parser": "~3.4.3",
+        "htmltidy2": "~0.3.0"
     }
 }
