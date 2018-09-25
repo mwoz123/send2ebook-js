@@ -1,8 +1,8 @@
-'use strict';
 const Parser = require('rss-parser');
-const Send2Ebook = require('./send2ebook.js')
+const Send2Ebook = require('./send2ebook')
 
 class Send2EbookRssAtom {
+    
 
     constructor({ host, user, pass, port = 21, folder = "/" }) {
         this.connectionSettings = {
@@ -15,7 +15,7 @@ class Send2EbookRssAtom {
         const dateAndTime = this.dateAndTime();
         const connectionSettings = this.connectionSettings;
 
-        rssOrAtomUrlAndLimit.map(async ({ url, limit }) => {
+        rssOrAtomUrlAndLimit.map(async ({ url, limit = 8 }) => {
 
             const parser = new Parser();
             const feed = await parser.parseURL(url);
