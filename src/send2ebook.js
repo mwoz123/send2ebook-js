@@ -40,8 +40,13 @@ class Send2Ebook {
     }
   }
 
+  obtainTitle(outputname, option) {
+    option.title = outputname ? outputname : this.titleFromDate;
+  }
 
-
+  titleFromDate() {
+    return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
+  }
 
   async createEbookSaveToFtp(option, fileExt) {
     const localFileName = this.sanitarizeName(option.title) + fileExt;
@@ -51,15 +56,6 @@ class Send2Ebook {
     }
     catch (err) {
       throw err;
-    }
-  }
-
-  obtainTitle(outputname, option) {
-    if (outputname) {
-      option.title = outputname;
-    }
-    else if (!option.title) {
-      option.title = new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
     }
   }
 
