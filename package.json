@@ -11,16 +11,23 @@
     },
     "scripts": {
         "start": "node ./app.js",
-        "debug": "node --inspect --inspect-brk ./app.js"
+        "compile": "tsc",
+        "debug": "tsc && node --inspect --inspect-brk ./dist/app.js"
     },
     "dependencies": {
-        "epub-gen": "~0.0.20",
-        "jsftp": "~2.1.3",
-        "jsdom": "~11.11.0",
-        "axios": "~0.18.0",
-        "sanitize-html": "~1.18.2",
+        "@types/core-js": "^2.5.0",
         "absolutify": "~0.1.0",
+        "axios": "~0.18.0",
+        "epub-gen": "~0.0.20",
+        "htmltidy2": "~0.3.0",
+        "jsdom": "~11.11.0",
+        "jsftp": "~2.1.3",
         "rss-parser": "~3.4.3",
-        "htmltidy2": "~0.3.0"
+        "rxjs": "^6.4.0",
+        "sanitize-html": "~1.18.2"
+    },
+    "devDependencies": {
+        "@types/jsftp": "^2.1.0",
+        "typescript": "~3.3.3333"
     }
 }

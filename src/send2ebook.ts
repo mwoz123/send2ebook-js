@@ -1,46 +1,63 @@
-const jsftp = require("jsftp");
-const fs = require("fs");
 const { JSDOM } = require("jsdom");
 const axios = require('axios');
 const sanitizeHtml = require('sanitize-html');
 const Epub = require("epub-gen")
 const absolutify = require('absolutify')
-const URL = require('url');
+const urlParser = require('url');
 const tidy = require('htmltidy2').tidy;
 
-class Send2Ebook {
+import { range, Observable, from } from 'rxjs';
+// import { Observable } from 'rxjs/Observable';
+import 'rxjs/add/observable/from';
+import { map, filter } from 'rxjs/operators';
+import jsftp from "jsftp";
+import fs from "fs";
 
-  constructor({ host, user, pass, port = 21, folder = "/" }) {
+interface ConnectionSettings {
+  host: string,
+  user: string,
+  pass: string,
+  port: number ,
+  folder: string
+}
+
+export class Send2Ebook {
+
+  connectionSettings : ConnectionSettings;
+  
+  constructor({ host, user, pass, port = 21, folder = "/" } : ConnectionSettings) {
     this.connectionSettings = {
       host, user, pass, port, folder
     }
   }
-
-
-  async process([...urls], outputname) {
-
+  
+  
+  async process([...urls], outputname :string) {
     const fileExt = ".epub";
+
     const errors = new Map();
     const option = {
       author: "Send2Ebook",
       content: []
     }
 
+    // Observable.of(urls).subs
+
     await this.gatherEbookData(urls, outputname, option, errors);
 
-    errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
+    errors.forEach((err: string, url : string) => console.error(`Error: '${err}' occured for url: ${url}`));
 
     if (option.content.length > 0) {
 
       this.obtainTitle(outputname, option);
 
       this.createEbookSaveToFtp(option, fileExt);
-    }else {
+    } else {
       throw ("Can't create Epub without context.");
     }
   }
 
-  obtainTitle(outputname, option) {
+  obtainTitle(outputname: string, option) {
     option.title = outputname ? outputname : this.titleFromDate;
   }
 
@@ -48,7 +65,7 @@ class Send2Ebook {
     return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
   }
 
-  async createEbookSaveToFtp(option, fileExt) {
+  async createEbookSaveToFtp(option, fileExt :string) {
     const localFileName = this.sanitarizeName(option.title) + fileExt;
     try {
       await new Epub(option, localFileName).promise;
@@ -60,6 +77,8 @@ class Send2Ebook {
   }
 
   async gatherEbookData(urls, outputname, option, errors) {
+
+    // Observable.from(urls).
 
     await Promise.all(urls.map(async (url) => {
       console.log(`Processing: ${url}`);
@@ -90,7 +109,7 @@ class Send2Ebook {
   }
 
   async sanitarizeData(url, response) {
-    const location = URL.parse(url);
+    const location = urlParser.parse(url);
     const site = `${location.protocol}//${location.host}`;
     let parsed = absolutify(response.data, site);
 
@@ -144,5 +163,3 @@ class Send2Ebook {
     });
   }
 }
-
-module.exports = Send2Ebook;
