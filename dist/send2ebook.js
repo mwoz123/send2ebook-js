@@ -40,7 +40,7 @@ class Send2Ebook {
             };
             // Observable.of(urls).subs
             const data$ = this.gatherEbookData(urls, outputname, option, errors);
-            data$.subscribe(console.log);
+            data$.subscribe(x => { console.log(option.content[0]); console.log("\n\n" + option.content[0].data); });
             // errors.forEach((err: string, url: string) => console.error(`Error: '${err}' occured for url: ${url}`));
             // if (option.content.length > 0) {
             //   this.obtainTitle(outputname, option);
@@ -68,32 +68,35 @@ class Send2Ebook {
             }
         });
     }
-    gatherEbookData(urls, outputname, option, errors) {
-        return rxjs_1.forkJoin(urls.map(url => {
-            console.log(`Processing: ${url}`);
-            try {
-                const response$ = rxjs_1.of(url).pipe(operators_1.switchMap(url => axios_1.default.get(url)), operators_1.map(resp => resp.data));
-                const dom$ = response$.pipe(operators_1.map(data => new jsdom_1.JSDOM(data)));
-                const title$ = dom$.pipe(operators_1.map(dom => dom.window.document.title));
-                // title$.subscribe( x =>console.log("title:" +x));   
-                // const sanitzedTitle$ = title$.pipe(map())
-                // const response = await axios.get(url);
-                // const dom = new JSDOM(response.data);
-                // const docTitle = dom.window.document.title;
-                // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
-                const cleanedHtml$ = this.sanitarizeData(url, response$);
-                return cleanedHtml$.pipe(
-                // tap(console.log),
-                operators_1.flatMap(html => title$.pipe(operators_1.tap(title => option.content.push({
-                    title: title,
-                    data: html,
-                    author: url
-                })))));
-            }
-            catch (err) {
-                errors.set(url, err);
-            }
-        }));
+    gatherEbookData(url, outputname, option, errors) {
+        // return forkJoin(urls.map(url => {
+        console.log(`Processing: ${url}`);
+        try {
+            const response$ = rxjs_1.of(url).pipe(operators_1.switchMap(url => axios_1.default.get(url)), operators_1.map(resp => resp.data));
+            const dom$ = response$.pipe(operators_1.map(data => new jsdom_1.JSDOM(data)));
+            const title$ = dom$.pipe(operators_1.map(dom => dom.window.document.title));
+            // title$.subscribe( x =>console.log("title:" +x));   
+            // const sanitzedTitle$ = title$.pipe(map())
+            // const response = await axios.get(url);
+            // const dom = new JSDOM(response.data);
+            // const docTitle = dom.window.document.title;
+            // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
+            const cleanedHtml$ = this.sanitarizeData(url, response$);
+            return cleanedHtml$.pipe(
+            // tap(console.log),
+            operators_1.flatMap(html => title$.pipe(operators_1.tap(title => option.content.push({
+                title: title,
+                data: html,
+                author: url
+            })))));
+        }
+        catch (err) {
+            errors.set(url, err);
+            return rxjs_1.of(1); //FIXME: replace with something better
+        }
+        // }
+        // )
+        // );
     }
     ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle) {
         if (urls.length == 1 && !outputname) {

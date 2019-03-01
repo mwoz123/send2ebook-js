@@ -6,7 +6,7 @@ import absolutify from "absolutify";
 const urlParser = require('url');
 import { tidy } from 'htmltidy2';
 // const fs = require('fs')
-import { range, Observable, from, of, forkJoin, bindCallback } from 'rxjs';
+import { range, Observable, from, of, forkJoin, bindCallback, empty } from 'rxjs';
 // import { Observable } from 'rxjs/Observable';
 import { map, filter, tap, switchMap, flatMap, count, skip } from 'rxjs/operators';
 import jsftp from "jsftp";
@@ -31,7 +31,7 @@ export class Send2Ebook {
   }
 
 
-  async process(urls: string[], outputname?: string) {
+  async process(urls: string, outputname?: string) {
     const fileExt = ".epub";
 
     const errors = new Map();
@@ -43,7 +43,7 @@ export class Send2Ebook {
     // Observable.of(urls).subs
 
     const data$ = this.gatherEbookData(urls, outputname, option, errors);
-    data$.subscribe(console.log);
+    data$.subscribe(x=> {console.log(option.content[0]); console.log("\n\n" + (option.content[0] as any).data)});
 
     // errors.forEach((err: string, url: string) => console.error(`Error: '${err}' occured for url: ${url}`));
 
@@ -76,9 +76,9 @@ export class Send2Ebook {
     }
   }
 
-  gatherEbookData(urls: string[], outputname, option, errors): Observable<any> {
+  gatherEbookData(url: string, outputname, option, errors): Observable<any> {
 
-    return forkJoin(urls.map(url => {
+    // return forkJoin(urls.map(url => {
       console.log(`Processing: ${url}`);
       try {
 
@@ -115,8 +115,11 @@ export class Send2Ebook {
 
       } catch (err) {
         errors.set(url, err);
+        return of(1); //FIXME: replace with something better
       }
-    }));
+    // }
+    // )
+    // );
   }
 
   ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle) {

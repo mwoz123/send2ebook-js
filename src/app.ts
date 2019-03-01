@@ -55,7 +55,7 @@ export class App {
         // title$.subscribe(console.log);
         const conn = {host: "abc", "user": "def", "pass": "addd", port : 21, folder : "/"}
         const s2e = new Send2Ebook(conn);
-        s2e.process(urls, "x");
+        s2e.process(url2, "x");
 
 
 
