@@ -8,7 +8,7 @@ import { tidy } from 'htmltidy2';
 // const fs = require('fs')
 import { range, Observable, from, of, forkJoin, bindCallback } from 'rxjs';
 // import { Observable } from 'rxjs/Observable';
-import { map, filter, tap, switchMap, flatMap } from 'rxjs/operators';
+import { map, filter, tap, switchMap, flatMap, count, skip } from 'rxjs/operators';
 import jsftp from "jsftp";
 import fs from "fs";
 
@@ -82,14 +82,14 @@ export class Send2Ebook {
       console.log(`Processing: ${url}`);
       try {
 
-        const responses$ = from(urls).pipe(
-          flatMap(url => axios.get(url)),
-          map(resp => resp.data)
+        const response$ = of(url).pipe(
+          switchMap(url => axios.get(url)),
+          map(resp => resp.data),
         );
 
-        const dom$ = responses$.pipe(map(resp => new JSDOM(resp.data)));
+        const dom$ = response$.pipe(map(data => new JSDOM(data)));
         const title$ = dom$.pipe(map(dom => dom.window.document.title));
-        title$.subscribe( x =>console.log("title" +x));   
+        // title$.subscribe( x =>console.log("title:" +x));   
         // const sanitzedTitle$ = title$.pipe(map())
 
         // const response = await axios.get(url);
@@ -98,10 +98,10 @@ export class Send2Ebook {
 
         // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
 
-        const cleanedHtml$ = this.sanitarizeData(url, responses$);
+        const cleanedHtml$ = this.sanitarizeData(url, response$);
 
         return cleanedHtml$.pipe(
-          tap(console.log),
+          // tap(console.log),
          flatMap(html =>
             title$.pipe(
               tap(title =>
@@ -128,7 +128,7 @@ export class Send2Ebook {
   
   sanitarizeData(url, response$: Observable<any>): Observable<any> {
 
-    return response$.pipe(flatMap(
+    return response$.pipe(switchMap(
       data => {
         const location = urlParser.parse(url);
         const site = `${location.protocol}//${location.host}`;
@@ -150,26 +150,11 @@ export class Send2Ebook {
 
         const cleanedHtml = sanitizeHtml(parsed, sanitarizeOptions); 
 
-        //FIXME: to be cleaned : 
-
-        // const tidied = ;
         const tidy$ : any = bindCallback(tidy);
-        return tidy$(cleanedHtml);
-        // return tidyCallback$();
-        // return Observable.create(observer => {
-        //   observer.next(tidy(cleanedHtml));
-        // });
-        // const validHtml$ = cleanedHtml$.pipe(map(data => tidy(data)));
-        // const validHtml = await new Promise((resolve, reject) => {
-        //   tidy(cleanedHtml, async (err, html) => {
-        //     if (err) {
-        //       reject(err);
-        //     } else {
-        //       resolve(html);
-        //     }
-        //   });
-        // });
-        // return of(tidied);
+        return tidy$(cleanedHtml).pipe(
+          switchMap((data:[])=> from(data)),
+          skip(1),
+        )
       }
     ));
   }

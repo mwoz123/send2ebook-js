@@ -72,17 +72,19 @@ class Send2Ebook {
         return rxjs_1.forkJoin(urls.map(url => {
             console.log(`Processing: ${url}`);
             try {
-                const responses$ = rxjs_1.from(urls).pipe(operators_1.flatMap(url => axios_1.default.get(url)), operators_1.map(resp => resp.data));
-                const dom$ = responses$.pipe(operators_1.map(resp => new jsdom_1.JSDOM(resp.data)));
+                const response$ = rxjs_1.of(url).pipe(operators_1.switchMap(url => axios_1.default.get(url)), operators_1.map(resp => resp.data));
+                const dom$ = response$.pipe(operators_1.map(data => new jsdom_1.JSDOM(data)));
                 const title$ = dom$.pipe(operators_1.map(dom => dom.window.document.title));
-                title$.subscribe(x => console.log("title" + x));
+                // title$.subscribe( x =>console.log("title:" +x));   
                 // const sanitzedTitle$ = title$.pipe(map())
                 // const response = await axios.get(url);
                 // const dom = new JSDOM(response.data);
                 // const docTitle = dom.window.document.title;
                 // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
-                const cleanedHtml$ = this.sanitarizeData(url, responses$);
-                return cleanedHtml$.pipe(operators_1.tap(console.log), operators_1.flatMap(html => title$.pipe(operators_1.tap(title => option.content.push({
+                const cleanedHtml$ = this.sanitarizeData(url, response$);
+                return cleanedHtml$.pipe(
+                // tap(console.log),
+                operators_1.flatMap(html => title$.pipe(operators_1.tap(title => option.content.push({
                     title: title,
                     data: html,
                     author: url
@@ -99,7 +101,7 @@ class Send2Ebook {
         }
     }
     sanitarizeData(url, response$) {
-        return response$.pipe(operators_1.flatMap(data => {
+        return response$.pipe(operators_1.switchMap(data => {
             const location = urlParser.parse(url);
             const site = `${location.protocol}//${location.host}`;
             let parsed = absolutify_1.default(data, site);
@@ -114,25 +116,8 @@ class Send2Ebook {
                 }
             };
             const cleanedHtml = sanitize_html_1.default(parsed, sanitarizeOptions);
-            //FIXME: not working : 
-            // const tidied = ;
             const tidy$ = rxjs_1.bindCallback(htmltidy2_1.tidy);
-            return tidy$(cleanedHtml);
-            // return tidyCallback$();
-            // return Observable.create(observer => {
-            //   observer.next(tidy(cleanedHtml));
-            // });
-            // const validHtml$ = cleanedHtml$.pipe(map(data => tidy(data)));
-            // const validHtml = await new Promise((resolve, reject) => {
-            //   tidy(cleanedHtml, async (err, html) => {
-            //     if (err) {
-            //       reject(err);
-            //     } else {
-            //       resolve(html);
-            //     }
-            //   });
-            // });
-            // return of(tidied);
+            return tidy$(cleanedHtml).pipe(operators_1.switchMap((data) => rxjs_1.from(data)), operators_1.skip(1));
         }));
     }
     sanitarizeName(str) {
