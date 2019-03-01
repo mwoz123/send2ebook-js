@@ -1,16 +1,13 @@
-// const { JSDOM } = require("jsdom");
 import { JSDOM } from "jsdom";
-// const axios = require('axios');
 import axios from "axios";
-const sanitizeHtml = require('sanitize-html');
+import sanitizeHtml from 'sanitize-html';
 const Epub = require("epub-gen")
-const absolutify = require('absolutify')
+import absolutify from "absolutify";
 const urlParser = require('url');
-const tidy = require('htmltidy2').tidy;
-
-import { range, Observable, from } from 'rxjs';
+import { tidy } from 'htmltidy2';
+// const fs = require('fs')
+import { range, Observable, from, of, forkJoin, bindCallback } from 'rxjs';
 // import { Observable } from 'rxjs/Observable';
-import 'rxjs/add/observable/from';
 import { map, filter, tap, switchMap, flatMap } from 'rxjs/operators';
 import jsftp from "jsftp";
 import fs from "fs";
@@ -34,7 +31,7 @@ export class Send2Ebook {
   }
 
 
-  async process(urls: [], outputname: string) {
+  async process(urls: string[], outputname?: string) {
     const fileExt = ".epub";
 
     const errors = new Map();
@@ -45,21 +42,22 @@ export class Send2Ebook {
 
     // Observable.of(urls).subs
 
-    await this.gatherEbookData(urls, outputname, option, errors);
+    const data$ = this.gatherEbookData(urls, outputname, option, errors);
+    data$.subscribe(console.log);
 
-    errors.forEach((err: string, url: string) => console.error(`Error: '${err}' occured for url: ${url}`));
+    // errors.forEach((err: string, url: string) => console.error(`Error: '${err}' occured for url: ${url}`));
 
-    if (option.content.length > 0) {
+    // if (option.content.length > 0) {
 
-      this.obtainTitle(outputname, option);
+    //   this.obtainTitle(outputname, option);
 
-      this.createEbookSaveToFtp(option, fileExt);
-    } else {
-      throw ("Can't create Epub without context.");
-    }
+    //   this.createEbookSaveToFtp(option, fileExt);
+    // } else {
+    //   throw ("Can't create Epub without context.");
+    // }
   }
 
-  obtainTitle(outputname: string, option) {
+  obtainTitle(outputname?: string, option?) {
     option.title = outputname ? outputname : this.titleFromDate;
   }
 
@@ -78,36 +76,44 @@ export class Send2Ebook {
     }
   }
 
-  async gatherEbookData(urls: [], outputname, option, errors) {
+  gatherEbookData(urls: string[], outputname, option, errors): Observable<any> {
 
-    const responses$ = from(urls).pipe(
-      flatMap(url => axios.get(url)),
-      map(resp => resp.data)
-    );
-
-    const dom$ = responses$.pipe(map(resp => new JSDOM(resp.data)));
-    const title$ = dom$.pipe(map(dom => dom.window.document.title));
-    // const sanitzedTitle$ = title$.pipe(map())
-
-
-
-    await Promise.all(urls.map(async (url) => {
+    return forkJoin(urls.map(url => {
       console.log(`Processing: ${url}`);
       try {
-        const response = await axios.get(url);
-        const dom = new JSDOM(response.data);
-        const docTitle = dom.window.document.title;
 
-        this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
+        const responses$ = from(urls).pipe(
+          flatMap(url => axios.get(url)),
+          map(resp => resp.data)
+        );
 
-        const cleanedHtml = await this.sanitarizeData(url, response);
-        option.content.push({
-          title: docTitle,
-          data: cleanedHtml,
-          author: url
-        });
-      }
-      catch (err) {
+        const dom$ = responses$.pipe(map(resp => new JSDOM(resp.data)));
+        const title$ = dom$.pipe(map(dom => dom.window.document.title));
+        title$.subscribe( x =>console.log("title" +x));   
+        // const sanitzedTitle$ = title$.pipe(map())
+
+        // const response = await axios.get(url);
+        // const dom = new JSDOM(response.data);
+        // const docTitle = dom.window.document.title;
+
+        // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
+
+        const cleanedHtml$ = this.sanitarizeData(url, responses$);
+
+        return cleanedHtml$.pipe(
+          tap(console.log),
+         flatMap(html =>
+            title$.pipe(
+              tap(title =>
+                option.content.push({
+                  title: title,
+                  data: html,
+                  author: url
+                })))
+          )
+        );
+
+      } catch (err) {
         errors.set(url, err);
       }
     }));
@@ -118,38 +124,54 @@ export class Send2Ebook {
       option.title = docTitle;
     }
   }
+  
+  
+  sanitarizeData(url, response$: Observable<any>): Observable<any> {
 
-  async sanitarizeData(url, response) {
-    const location = urlParser.parse(url);
-    const site = `${location.protocol}//${location.host}`;
-    let parsed = absolutify(response.data, site);
+    return response$.pipe(flatMap(
+      data => {
+        const location = urlParser.parse(url);
+        const site = `${location.protocol}//${location.host}`;
 
-    parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
+        let parsed = absolutify(data, site);
 
-    parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
+        parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
 
-    const sanitarizeOptions = {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title', 'article', 'style']),
-      preserveDoctypes: true,
-      allowProtocolRelative: false,
-      exclusiveFilter: function (frame) {
-        return frame.tag === 'img' && !frame.attribs.src; //fix exception when empty <img /> 
+        parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
+
+        const sanitarizeOptions = {
+          allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title', 'article', 'style']),
+          preserveDoctypes: true,
+          allowProtocolRelative: false,
+          exclusiveFilter: function (frame) {
+            return frame.tag === 'img' && !frame.attribs.src; //fix exception when empty <img /> 
+          }
+        };
+
+        const cleanedHtml = sanitizeHtml(parsed, sanitarizeOptions); 
+
+        //FIXME: to be cleaned : 
+
+        // const tidied = ;
+        const tidy$ : any = bindCallback(tidy);
+        return tidy$(cleanedHtml);
+        // return tidyCallback$();
+        // return Observable.create(observer => {
+        //   observer.next(tidy(cleanedHtml));
+        // });
+        // const validHtml$ = cleanedHtml$.pipe(map(data => tidy(data)));
+        // const validHtml = await new Promise((resolve, reject) => {
+        //   tidy(cleanedHtml, async (err, html) => {
+        //     if (err) {
+        //       reject(err);
+        //     } else {
+        //       resolve(html);
+        //     }
+        //   });
+        // });
+        // return of(tidied);
       }
-    };
-    
-    const cleanedHtml = await sanitizeHtml(parsed, sanitarizeOptions );
-
-
-    const validHtml = await new Promise((resolve, reject) => {
-      tidy(cleanedHtml, async (err, html) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(html);
-        }
-      });
-    });
-    return validHtml;
+    ));
   }
 
   sanitarizeName(str) {
