@@ -1,26 +1,26 @@
 {
-    "name": "send2ebook",
-    "preferGlobal": false,
-    "version": "1.0.0",
-    "author": "<mwoz123@github.com>",
-    "description": "todo",
-    "license": "LGPL",
-    "main": "send2ebook.js",
-    "engines": {
-        "node": ">=0.10"
-    },
-    "scripts": {
-        "start": "node ./app.js",
-        "debug": "node --inspect --inspect-brk ./app.js"
-    },
-    "dependencies": {
-        "epub-gen": "~0.0.20",
-        "jsftp": "~2.1.3",
-        "jsdom": "~11.11.0",
-        "axios": "~0.18.0",
-        "sanitize-html": "~1.18.2",
-        "absolutify": "~0.1.0",
-        "rss-parser": "~3.4.3",
-        "htmltidy2": "~0.3.0"
-    }
+  "name": "send2ebook",
+  "preferGlobal": false,
+  "version": "1.0.0",
+  "author": "<mwoz123@github.com>",
+  "description": "todo",
+  "license": "LGPL",
+  "main": "send2ebook.js",
+  "engines": {
+    "node": ">=0.10"
+  },
+  "scripts": {
+    "start": "node ./app.js",
+    "debug": "node --inspect --inspect-brk ./app.js"
+  },
+  "dependencies": {
+    "absolutify": "~0.1.0",
+    "axios": "~0.18.0",
+    "basic-ftp": "^3.4.3",
+    "epub-gen": "~0.0.20",
+    "htmltidy2": "~0.3.0",
+    "jsdom": "~11.11.0",
+    "rss-parser": "~3.4.3",
+    "sanitize-html": "~1.18.2"
+  }
 }
