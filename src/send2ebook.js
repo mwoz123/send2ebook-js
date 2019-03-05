@@ -129,21 +129,18 @@ class Send2Ebook {
     console.log("saving to ftp " + this.connectionSettings.host);
     const remotePath = this.connectionSettings.folder + localFileName;
 
-    // const ftp = new jsftp(this.connectionSettings);
-
-    const client = new ftp.Client()
-        client.ftp.verbose = true
+    const ftpClient = new ftp.Client()
+        ftpClient.ftp.verbose = true
         try {
-            await client.access(this.connectionSettings)
-            // console.log(await client.list())
+            await ftpClient.access(this.connectionSettings)
             const local = fs.createReadStream(localFileName);
-            await client.upload(local, remotePath)
+            await ftpClient.upload(local, remotePath)
+            console.log('file succesfully send to ftp ');
         }
         catch(err) {
             console.log(err);
         }
-        console.log('succesfully send to ftp ');
-        client.close();
+        ftpClient.close();
   }
 }
 
