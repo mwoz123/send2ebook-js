@@ -1,4 +1,4 @@
-const jsftp = require("jsftp");
+const ftp = require("basic-ftp")
 const fs = require("fs");
 const { JSDOM } = require("jsdom");
 const axios = require('axios');
@@ -12,7 +12,7 @@ class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
     this.connectionSettings = {
-      host, user, pass, port, folder
+      host, user, password: pass, port, folder
     }
   }
 
@@ -52,7 +52,7 @@ class Send2Ebook {
     const localFileName = this.sanitarizeName(option.title) + fileExt;
     try {
       await new Epub(option, localFileName).promise;
-      this.saveToFtpAndRemoveFromDisk(localFileName);
+      await this.saveToFtp(localFileName);
     }
     catch (err) {
       throw err;
@@ -125,23 +125,25 @@ class Send2Ebook {
   }
 
 
-  saveToFtpAndRemoveFromDisk(localFileName) {
+  async saveToFtp(localFileName) {
     console.log("saving to ftp " + this.connectionSettings.host);
     const remotePath = this.connectionSettings.folder + localFileName;
 
-    const ftp = new jsftp(this.connectionSettings);
-    ftp.put(localFileName, remotePath, function (err) {
-      if (err)
-        throw err;
-      console.log('succesfully send to ftp ');
-      ftp.destroy();
+    // const ftp = new jsftp(this.connectionSettings);
 
-      fs.unlink(localFileName, (err) => {
-        if (err)
-          throw err;
-        console.log(localFileName + ' was removed from local filesystem');
-      });
-    });
+    const client = new ftp.Client()
+        client.ftp.verbose = true
+        try {
+            await client.access(this.connectionSettings)
+            // console.log(await client.list())
+            const local = fs.createReadStream(localFileName);
+            await client.upload(local, remotePath)
+        }
+        catch(err) {
+            console.log(err);
+        }
+        console.log('succesfully send to ftp ');
+        client.close();
   }
 }
 
