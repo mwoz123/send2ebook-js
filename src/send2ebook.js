@@ -3,10 +3,10 @@ const fs = require("fs");
 const { JSDOM } = require("jsdom");
 const axios = require('axios');
 const sanitizeHtml = require('sanitize-html');
-const Epub = require("epub-gen")
 const absolutify = require('absolutify')
 const URL = require('url');
-const tidy = require('htmltidy2').tidy;
+const { tidy } = require('htmltidy2');
+const EpubConverter = require('./converter/epubConverter')
 
 class Send2Ebook {
 
@@ -21,21 +21,22 @@ class Send2Ebook {
 
     const fileExt = ".epub";
     const errors = new Map();
-    const option = {
+    const data = {
       author: "Send2Ebook",
+      title : outputname,
       content: []
     }
 
-    await this.gatherEbookData(urls, outputname, option, errors);
+    await this.gatherEbookData(urls, outputname, data, errors);
 
     errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
-    if (option.content.length > 0) {
+    if (data.content.length > 0) {
 
-      this.obtainTitle(outputname, option);
+      this.obtainTitle(outputname, data);
 
-      this.createEbookSaveToFtp(option, fileExt);
-    }else {
+      this.createEbookSaveToFtp(data, fileExt);
+    } else {
       throw ("Can't create Epub without context.");
     }
   }
@@ -51,7 +52,9 @@ class Send2Ebook {
   async createEbookSaveToFtp(option, fileExt) {
     const localFileName = this.sanitarizeName(option.title) + fileExt;
     try {
-      await new Epub(option, localFileName).promise;
+      // await new Epub(option, localFileName).promise;
+      const converter = new EpubConverter();
+      converter.convert() //TODO: continue refactor here. might be required to change to promise or observable
       await this.saveToFtp(localFileName);
     }
     catch (err) {
@@ -130,17 +133,17 @@ class Send2Ebook {
     const remotePath = this.connectionSettings.folder + localFileName;
 
     const ftpClient = new ftp.Client()
-        ftpClient.ftp.verbose = true
-        try {
-            await ftpClient.access(this.connectionSettings)
-            const local = fs.createReadStream(localFileName);
-            await ftpClient.upload(local, remotePath)
-            console.log('file succesfully send to ftp ');
-        }
-        catch(err) {
-            console.log(err);
-        }
-        ftpClient.close();
+    ftpClient.ftp.verbose = true
+    try {
+      await ftpClient.access(this.connectionSettings)
+      const local = fs.createReadStream(localFileName);
+      await ftpClient.upload(local, remotePath)
+      console.log('file succesfully send to ftp ');
+    }
+    catch (err) {
+      console.log(err);
+    }
+    ftpClient.close();
   }
 }
 

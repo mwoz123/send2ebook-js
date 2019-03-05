@@ -21,6 +21,7 @@
     "htmltidy2": "~0.3.0",
     "jsdom": "~11.11.0",
     "rss-parser": "~3.4.3",
-    "sanitize-html": "~1.18.2"
+    "sanitize-html": "~1.18.2",
+    "streampub": "^1.9.0"
   }
 }
