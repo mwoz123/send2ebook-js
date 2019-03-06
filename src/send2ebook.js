@@ -2,7 +2,7 @@ const FtpStorage = require("./output/ftp/ftpStorage")
 const ToEpubConverter = require('./converter/toEpubConverter');
 const DuplexStream = require('./model/duplexStream');
 const UrlInputProcessor = require('./input/urlInputProcessor');
-class Send2Ebook {
+module.exports = class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
     this.connectionSettings = {
@@ -78,4 +78,3 @@ class Send2Ebook {
   }
 }
 
-module.exports = Send2Ebook;
