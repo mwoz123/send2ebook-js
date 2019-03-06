@@ -1,11 +1,11 @@
-const FtpStorage = require("./storage/ftp/ftpStorage")
+const FtpStorage = require("./output/ftp/ftpStorage")
 const { JSDOM } = require("jsdom");
 const axios = require('axios');
 const sanitizeHtml = require('sanitize-html');
 const absolutify = require('absolutify')
 const URL = require('url');
 const { tidy } = require('htmltidy2');
-const EpubConverter = require('./converter/epubConverter');
+const ToEpubConverter = require('./converter/toEpubConverter');
 const DuplexStream = require('./model/duplexStream');
 
 class Send2Ebook {
@@ -35,7 +35,7 @@ class Send2Ebook {
 
       this.obtainTitle(outputname, data);
 
-      this.createEbookSaveToFtp(data, fileExt);
+      this.convertToEpubAndSaveToFtp(data, fileExt);
     } else {
       throw ("Can't create Epub without context.");
     }
@@ -49,11 +49,11 @@ class Send2Ebook {
     return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
   }
 
-  async createEbookSaveToFtp(data, fileExt) {
+  async convertToEpubAndSaveToFtp(data, fileExt) {
     const fileName = this.sanitarizeName(data.title) + fileExt;
     const duplexStream = new DuplexStream();
     try {
-      const converter = new EpubConverter();
+      const converter = new ToEpubConverter();
       await converter.convert(data, duplexStream);
       await this.saveToFtp(duplexStream, fileName);
     }

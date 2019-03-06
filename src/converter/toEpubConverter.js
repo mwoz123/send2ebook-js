@@ -1,6 +1,6 @@
 const Streampub = require('streampub')
 
-class EpubConverter {
+class ToEpubConverter {
 
     convert(data, writeableStream) {
         const epub = new Streampub({ title: data.title });
@@ -23,4 +23,4 @@ class EpubConverter {
 }
 
 
-module.exports = EpubConverter;
+module.exports = ToEpubConverter;
