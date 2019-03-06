@@ -5,7 +5,7 @@ const absolutify = require('absolutify')
 const URL = require('url');
 const { tidy } = require('htmltidy2');
 
-class UrlInputProcessor {
+module.exports = class UrlInputProcessor {
 
 
     async gatherEbookData(urls, data, errors) {
@@ -16,6 +16,8 @@ class UrlInputProcessor {
                 const response = await axios.get(url);
                 const dom = new JSDOM(response.data);
                 const docTitle = dom.window.document.title;
+
+                this.addAdditionalContent(dom.window.document, data, url);
 
                 this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, data, docTitle);
 
@@ -30,6 +32,43 @@ class UrlInputProcessor {
                 errors.set(url, err);
             }
         }));
+    }
+
+    addAdditionalContent(document, data, url) {
+        const elements = new Map();
+        const imgs = document.querySelectorAll("img");
+        const allreadyProcessing = [];
+
+        imgs.forEach(img => {
+            if (img.src && !allreadyProcessing.includes(img.src)) {
+                console.log("Processing img:" + img.src)
+                allreadyProcessing.push(img.src);
+
+                axios({
+                    method: 'get',
+                    url: img.src,
+                    responseType: 'stream'
+                }).then((imgResp) => {
+                        if (imgResp.status === 200) {
+
+                            // const name = this.extractFilename(img.src);
+                            // const consumer = fs.createWriteStream("./data/" + name);
+                            // imgResp.data.pipe(consumer);
+
+                            elements.set(img.src, imgResp.data)
+                        }
+                    });
+            } else {
+                console.log("Allready processing: " + img.src);
+            }
+        });
+        data[url] = [];
+        data[url].push(elements);
+    }
+
+
+    extractFilename(path) {
+        return path.replace(/^.*[\\\/]/, '');
     }
 
 
@@ -74,5 +113,3 @@ class UrlInputProcessor {
 
 
 }
-
-module.exports = UrlInputProcessor;
