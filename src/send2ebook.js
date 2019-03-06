@@ -6,7 +6,8 @@ const sanitizeHtml = require('sanitize-html');
 const absolutify = require('absolutify')
 const URL = require('url');
 const { tidy } = require('htmltidy2');
-const EpubConverter = require('./converter/epubConverter')
+const EpubConverter = require('./converter/epubConverter');
+const DuplexStream = require('./model/duplexStream');
 
 class Send2Ebook {
 
@@ -41,28 +42,28 @@ class Send2Ebook {
     }
   }
 
-  obtainTitle(outputname, option) {
-    option.title = outputname ? outputname : this.titleFromDate;
+  obtainTitle(outputname, data) {
+    data.title = outputname ? outputname : this.titleFromDate;
   }
 
   titleFromDate() {
     return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
   }
 
-  async createEbookSaveToFtp(option, fileExt) {
-    const localFileName = this.sanitarizeName(option.title) + fileExt;
+  async createEbookSaveToFtp(data, fileExt) {
+    const fileName = this.sanitarizeName(data.title) + fileExt;
+    const duplexStream = new DuplexStream();
     try {
-      // await new Epub(option, localFileName).promise;
       const converter = new EpubConverter();
-      converter.convert() //TODO: continue refactor here. might be required to change to promise or observable
-      await this.saveToFtp(localFileName);
+      await converter.convert(data, duplexStream);
+      await this.saveToFtp(duplexStream, fileName);
     }
     catch (err) {
       throw err;
     }
   }
 
-  async gatherEbookData(urls, outputname, option, errors) {
+  async gatherEbookData(urls, outputname, data, errors) {
 
     await Promise.all(urls.map(async (url) => {
       console.log(`Processing: ${url}`);
@@ -71,10 +72,10 @@ class Send2Ebook {
         const dom = new JSDOM(response.data);
         const docTitle = dom.window.document.head.querySelector("title").text;
 
-        this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle);
+        this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, data, docTitle);
 
         const cleanedHtml = await this.sanitarizeData(url, response);
-        option.content.push({
+        data.content.push({
           title: docTitle,
           data: cleanedHtml,
           author: url
@@ -86,9 +87,9 @@ class Send2Ebook {
     }));
   }
 
-  ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, option, docTitle) {
+  ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, data, docTitle) {
     if (urls.length == 1 && !outputname) {
-      option.title = docTitle;
+      data.title = docTitle;
     }
   }
 
@@ -128,16 +129,15 @@ class Send2Ebook {
   }
 
 
-  async saveToFtp(localFileName) {
+  async saveToFtp(stream, fileName) {
     console.log("saving to ftp " + this.connectionSettings.host);
-    const remotePath = this.connectionSettings.folder + localFileName;
+    const remotePath = this.connectionSettings.folder + fileName;
 
     const ftpClient = new ftp.Client()
     ftpClient.ftp.verbose = true
     try {
       await ftpClient.access(this.connectionSettings)
-      const local = fs.createReadStream(localFileName);
-      await ftpClient.upload(local, remotePath)
+      await ftpClient.upload(stream, remotePath)
       console.log('file succesfully send to ftp ');
     }
     catch (err) {

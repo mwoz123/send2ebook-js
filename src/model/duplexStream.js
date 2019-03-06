@@ -1,6 +1,6 @@
 const stream = require('stream')
 
-export class DuplexStream extends stream.Duplex {
+class DuplexStream extends stream.Duplex {
 
     constructor(options) {
         super(options)
@@ -21,3 +21,6 @@ export class DuplexStream extends stream.Duplex {
         console.log(`stream complete!`)
     }
 }
+
+
+module.exports = DuplexStream;
