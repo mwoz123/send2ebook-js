@@ -1,5 +1,4 @@
-const ftp = require("basic-ftp")
-const fs = require("fs");
+const FtpStorage = require("./storage/ftp/ftpStorage")
 const { JSDOM } = require("jsdom");
 const axios = require('axios');
 const sanitizeHtml = require('sanitize-html');
@@ -24,7 +23,7 @@ class Send2Ebook {
     const errors = new Map();
     const data = {
       author: "Send2Ebook",
-      title : outputname,
+      title: outputname,
       content: []
     }
 
@@ -131,19 +130,18 @@ class Send2Ebook {
 
   async saveToFtp(stream, fileName) {
     console.log("saving to ftp " + this.connectionSettings.host);
-    const remotePath = this.connectionSettings.folder + fileName;
+    const remotePath = this.connectionSettings.folder + "/" + fileName;
 
-    const ftpClient = new ftp.Client()
-    ftpClient.ftp.verbose = true
+    const ftpStorage = new FtpStorage()
     try {
-      await ftpClient.access(this.connectionSettings)
-      await ftpClient.upload(stream, remotePath)
-      console.log('file succesfully send to ftp ');
+      await ftpStorage.connect(this.connectionSettings)
+      await ftpStorage.upload(stream, remotePath)
+
     }
     catch (err) {
-      console.log(err);
+      throw err;
     }
-    ftpClient.close();
+    ftpStorage.disconnect();
   }
 }
 
