@@ -17,11 +17,6 @@ module.exports = class UrlInputProcessor {
                 const dom = new JSDOM(response.data);
                 const docTitle = dom.window.document.title;
 
-
-                const imgs = dom.window.document.querySelectorAll("img");
-                imgs.forEach(e => console.log(e.src))
-
-
                 this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);
 
                 const cleanedHtml = await this.sanitarizeData(url, response);
@@ -56,10 +51,10 @@ module.exports = class UrlInputProcessor {
                 axios.get(img.src, {
                     responseType: 'stream'
                 }).then((imgResp) => {
-                    const name = this.extractFilename(img.src);
-                    const fs = require('fs');
-                    const consumer = fs.createWriteStream("./data/" + name);
-                    imgResp.data.pipe(consumer);
+                    // const name = this.extractFilename(img.src);
+                    // const fs = require('fs');
+                    // const consumer = fs.createWriteStream("./data/" + name);
+                    // imgResp.data.pipe(consumer);
 
                     elements.set(img.src, imgResp.data)
                 });
@@ -105,7 +100,7 @@ module.exports = class UrlInputProcessor {
 
 
         const validHtml = await new Promise((resolve, reject) => {
-            tidy(parsed, {doctype: 'html5',hideComments: true,} async (err, html) => {
+            tidy(parsed, {doctype: 'html5',hideComments: true}, async (err, html) => {
                 if (err) {
                     reject(err);
                 } else {
