@@ -1,13 +1,7 @@
 const FtpStorage = require("./output/ftp/ftpStorage")
-const { JSDOM } = require("jsdom");
-const axios = require('axios');
-const sanitizeHtml = require('sanitize-html');
-const absolutify = require('absolutify')
-const URL = require('url');
-const { tidy } = require('htmltidy2');
 const ToEpubConverter = require('./converter/toEpubConverter');
 const DuplexStream = require('./model/duplexStream');
-
+const UrlInputProcessor = require('./input/urlInputProcessor');
 class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
@@ -27,7 +21,8 @@ class Send2Ebook {
       content: []
     }
 
-    await this.gatherEbookData(urls, outputname, data, errors);
+    const urlInputProcessor = new UrlInputProcessor();
+    await urlInputProcessor.gatherEbookData(urls, data, errors);
 
     errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
@@ -55,80 +50,18 @@ class Send2Ebook {
     try {
       const converter = new ToEpubConverter();
       await converter.convert(data, duplexStream);
-      await this.saveToFtp(duplexStream, fileName);
+      await this.saveOutput(duplexStream, fileName);
     }
     catch (err) {
       throw err;
     }
   }
 
-  async gatherEbookData(urls, outputname, data, errors) {
-
-    await Promise.all(urls.map(async (url) => {
-      console.log(`Processing: ${url}`);
-      try {
-        const response = await axios.get(url);
-        const dom = new JSDOM(response.data);
-        const docTitle = dom.window.document.head.querySelector("title").text;
-
-        this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, data, docTitle);
-
-        const cleanedHtml = await this.sanitarizeData(url, response);
-        data.content.push({
-          title: docTitle,
-          data: cleanedHtml,
-          author: url
-        });
-      }
-      catch (err) {
-        errors.set(url, err);
-      }
-    }));
-  }
-
-  ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, outputname, data, docTitle) {
-    if (urls.length == 1 && !outputname) {
-      data.title = docTitle;
-    }
-  }
-
-  async sanitarizeData(url, response) {
-    const location = URL.parse(url);
-    const site = `${location.protocol}//${location.host}`;
-    let parsed = absolutify(response.data, site);
-
-    parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
-
-    parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
-
-    const cleanedHtml = await sanitizeHtml(parsed, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title', 'article', 'style']),
-      preserveDoctypes: true,
-      allowProtocolRelative: false,
-      exclusiveFilter: function (frame) {
-        return frame.tag === 'img' && !frame.attribs.src; //fix exception when empty <img /> 
-      }
-    });
-
-
-    const validHtml = await new Promise((resolve, reject) => {
-      tidy(cleanedHtml, async (err, html) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(html);
-        }
-      });
-    });
-    return validHtml;
-  }
-
   sanitarizeName(str) {
     return str.replace(/[^\w\s]/gm, "_");
   }
 
-
-  async saveToFtp(stream, fileName) {
+  async saveOutput(stream, fileName) {
     console.log("saving to ftp " + this.connectionSettings.host);
     const remotePath = this.connectionSettings.folder + "/" + fileName;
 

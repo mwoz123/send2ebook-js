@@ -19,7 +19,6 @@ class FtpStorage {
     disconnect() {
         this.ftpClient.close();
     }
-
 }
 
 module.exports = FtpStorage;
