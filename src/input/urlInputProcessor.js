@@ -10,7 +10,7 @@ module.exports = class UrlInputProcessor {
 
     async gatherEbookData(urls, ebookData, errors) {
 
-        return await Promise.all(urls.map(async (url) => {
+        return await Promise.all(urls.map(async (url, index, array) => {
             console.log(`Processing: ${url}`);
             try {
                 const response = await axios.get(url); //TODO add {auth}
@@ -26,7 +26,7 @@ module.exports = class UrlInputProcessor {
                 ebookData.content.push({
                     title: docTitle,
                     data: cleanedHtml,
-                    author: url
+                    source: url,
                 });
             }
             catch (err) {
@@ -41,34 +41,38 @@ module.exports = class UrlInputProcessor {
 
         const elements = new Map();
         const imgs = dom.window.document.querySelectorAll("img");
-        const allreadyProcessing = [];
+        const allreadyProcessing = new Map();
 
-        await imgs.forEach(img => {
-            if (img.src && !allreadyProcessing.includes(img.src)) {
-                console.log("Processing img:" + img.src)
-                allreadyProcessing.push(img.src);
-
-                axios.get(img.src, {
+        // imgs.forEach((img, index, array) => { //TODO find way to async update DOM 
+        for (let index = 0; index < imgs.length; index++) {
+            let img = imgs[index];
+            if (img.src && !allreadyProcessing.has(img.src)) {
+                console.log("Processing img: " + img.src);
+                const name = this.extractFilename(img.src);
+                allreadyProcessing.set(img.src, name);
+                await axios.get(img.src, {
                     responseType: 'stream'
                 }).then((imgResp) => {
-                    // const name = this.extractFilename(img.src);
-                    // const fs = require('fs');
-                    // const consumer = fs.createWriteStream("./data/" + name);
-                    // imgResp.data.pipe(consumer);
-
-                    elements.set(img.src, imgResp.data)
-                });
+                    elements.set(name, imgResp.data);
+                    imgs[index].setAttribute("src", name);
+                }).catch(err => console.log("Error processing img: " + img.src + " error: " + err));
             } else {
                 console.log("Allready processing: " + img.src);
+                const imgFileName = allreadyProcessing.get(img.src);
+                imgs[index].setAttribute("src", imgFileName);
             }
-        });
+            if (index + 1 === imgs.length) {
+                ebookData.content.data = dom.serialize();
+            }
+        }
         ebookData[url] = [];
         ebookData[url].push(elements);
     }
 
-
-    extractFilename(path) {
-        return path.replace(/^.*[\\\/]/, '');
+    extractFilename(url) {
+        const path = require('path');
+        return path.basename(url);
+        // return path.replace(/^.*[\\\/]/, '');
     }
 
 
@@ -100,7 +104,7 @@ module.exports = class UrlInputProcessor {
 
 
         const validHtml = await new Promise((resolve, reject) => {
-            tidy(parsed, {doctype: 'html5',hideComments: true}, async (err, html) => {
+            tidy(parsed, { doctype: 'html5', hideComments: true }, async (err, html) => {
                 if (err) {
                     reject(err);
                 } else {
