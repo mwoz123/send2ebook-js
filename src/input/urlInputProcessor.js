@@ -54,12 +54,12 @@ module.exports = class UrlInputProcessor {
                     responseType: 'stream'
                 }).then((imgResp) => {
                     elements.set(name, imgResp.data);
-                    imgs[index].setAttribute("src", name);
+                    img.setAttribute("src", name);
                 }).catch(err => console.log("Error processing img: " + img.src + " error: " + err));
             } else {
                 console.log("Allready processing: " + img.src);
                 const imgFileName = allreadyProcessing.get(img.src);
-                imgs[index].setAttribute("src", imgFileName);
+                img.setAttribute("src", imgFileName);
             }
             if (index + 1 === imgs.length) {
                 ebookData.content.data = dom.serialize();

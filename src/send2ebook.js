@@ -68,7 +68,7 @@ module.exports = class Send2Ebook {
     const ftpStorage = new FtpStorage()
     try {
       await ftpStorage.connect(this.connectionSettings)
-      await ftpStorage.upload(stream, remotePath)
+      await ftpStorage.save(stream, remotePath)
 
     }
     catch (err) {
