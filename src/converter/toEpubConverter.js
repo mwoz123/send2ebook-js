@@ -2,22 +2,29 @@ const Streampub = require('streampub')
 
 class ToEpubConverter {
 
-    convert(data, writeableStream) {
-        const epub = new Streampub({ title: data.title });
-        epub.setAuthor(data.author);
-        epub.pipe(writeableStream);
+    convert(epubData, writeableStream) {
+        const fileExt = ".epub";
+        epubData.fileExt = fileExt;
 
         return new Promise((resole, reject) => {
 
-            data.content.forEach((item, index, array) => {
-                const chapter = Streampub.newChapter(`Chapter ${index + 1}`, item.data, index, `chapter-${index}.xhtml`);
-                epub.write(chapter);
-                if (index + 1 === array.length) {
-                    epub.end()
-                }
-                resole(writeableStream);
+            const epub = new Streampub({ title: epubData.title });
+            epub.setAuthor(epubData.author);
+            epubData.content.forEach((chapterData, i, chapterArray) => {
+
+                epub.pipe(writeableStream);
+
+                epub.write(Streampub.newChapter(chapterData.title, chapterData.data, i, `chapter-${i}.xhtml`));
+
+                chapterData.extraElements.forEach((value, key, map) => {
+                    epub.write(Streampub.newFile(key, value))
+                    if (i + 1 === chapterArray.length && map.get(map.size - 1) === value) {
+                        epub.end()
+                        resole(writeableStream);
+                    }
+                });
             });
-        })
+        });
 
     }
 }

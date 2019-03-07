@@ -8,26 +8,34 @@ const { tidy } = require('htmltidy2');
 module.exports = class UrlInputProcessor {
 
 
-    async gatherEbookData(urls, ebookData, errors) {
+    async gatherEbookData(urls, errors) {
 
-        return await Promise.all(urls.map(async (url, index, array) => {
+        const ebookData = {
+            author: "Send2Ebook",
+            content: []
+        }
+
+        return new Promise((resolve, reject) => urls.map(async (url, index, array) => {
             console.log(`Processing: ${url}`);
             try {
-                const response = await axios.get(url); //TODO add {auth}
+                const response = await axios.get(url); //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
+
                 const dom = new JSDOM(response.data);
                 const docTitle = dom.window.document.title;
-
-                this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);
+                this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);  //TODO move it to send2ebook.js
 
                 const cleanedHtml = await this.sanitarizeData(url, response);
 
-                this.addAdditionalContent(cleanedHtml, ebookData, url);
-
-                ebookData.content.push({
+                ebookData.content[index] = {
                     title: docTitle,
                     data: cleanedHtml,
                     source: url,
-                });
+                };
+
+                const resolveNow = index + 1 === array.length;
+
+                this.addAdditionalContent(cleanedHtml, ebookData, index, resolveNow, resolve);
+
             }
             catch (err) {
                 errors.set(url, err);
@@ -35,11 +43,13 @@ module.exports = class UrlInputProcessor {
         }));
     }
 
-    async addAdditionalContent(html, ebookData, url) {
-
+    async addAdditionalContent(html, ebookData, i, resolveNow, resolve) {
+        const chapterData = ebookData.content[i];
         const dom = new JSDOM(html);
 
         const elements = new Map();
+        chapterData.extraElements = elements;
+
         const imgs = dom.window.document.querySelectorAll("img");
         const allreadyProcessing = new Map();
 
@@ -55,18 +65,23 @@ module.exports = class UrlInputProcessor {
                 }).then((imgResp) => {
                     elements.set(name, imgResp.data);
                     img.setAttribute("src", name);
-                }).catch(err => console.log("Error processing img: " + img.src + " error: " + err));
+                    if (index + 1 === imgs.length && resolveNow) {
+                        chapterData.data = dom.serialize();
+                        resolve(ebookData);
+                    }
+                }).catch(err => {
+                    console.log("Error processing img: " + img.src + " error: " + err);
+                    if (index + 1 === imgs.length && resolveNow) {
+                        resolve(ebookData);
+                        chapterData.data = dom.serialize();
+                    }
+                });
             } else {
                 console.log("Allready processing: " + img.src);
                 const imgFileName = allreadyProcessing.get(img.src);
                 img.setAttribute("src", imgFileName);
             }
-            if (index + 1 === imgs.length) {
-                ebookData.content.data = dom.serialize();
-            }
         }
-        ebookData[url] = [];
-        ebookData[url].push(elements);
     }
 
     extractFilename(url) {

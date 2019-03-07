@@ -13,43 +13,38 @@ module.exports = class Send2Ebook {
 
   async process([...urls], outputname) {
 
-    const fileExt = ".epub";
     const errors = new Map();
-    const data = {
-      author: "Send2Ebook",
-      title: outputname,
-      content: []
-    }
 
     const urlInputProcessor = new UrlInputProcessor();
-    await urlInputProcessor.gatherEbookData(urls, data, errors);
+    urlInputProcessor.gatherEbookData(urls, errors).then(epubData => {
+      errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
-    errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
+      if (epubData.content.length > 0) {
 
-    if (data.content.length > 0) {
+        this.obtainTitle(outputname, epubData);
 
-      this.obtainTitle(outputname, data);
-
-      this.convertToEpubAndSaveToFtp(data, fileExt);
-    } else {
-      throw ("Can't create Epub without context.");
-    }
+        this.convertToEpubAndSaveToFtp(epubData);
+      } else {
+        throw ("Can't create Epub without context.");
+      }
+    });
   }
 
-  obtainTitle(outputname, data) {
-    data.title = outputname ? outputname : this.titleFromDate;
+  obtainTitle(outputname, epubData) {
+    epubData.title = outputname ? outputname : this.titleFromDate; //TODO recator to  |
   }
 
   titleFromDate() {
     return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
   }
 
-  async convertToEpubAndSaveToFtp(data, fileExt) {
-    const fileName = this.sanitarizeName(data.title) + fileExt;
+  async convertToEpubAndSaveToFtp(epubData) {
+
+    const fileName = this.sanitarizeName(epubData.title) + epubData.fileExt;
     const duplexStream = new DuplexStream();
     try {
       const converter = new ToEpubConverter();
-      await converter.convert(data, duplexStream);
+      await converter.convert(epubData, duplexStream);
       await this.saveOutput(duplexStream, fileName);
     }
     catch (err) {
