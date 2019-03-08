@@ -10,16 +10,15 @@
     "node": ">=0.10"
   },
   "scripts": {
-    "start": "node ./app.js",
-    "debug": "node --inspect --inspect-brk ./app.js"
+    "start": "node ./src/app.js",
+    "debug": "node --inspect --inspect-brk ./src/app.js"
   },
   "dependencies": {
     "absolutify": "~0.1.0",
     "axios": "~0.18.0",
     "basic-ftp": "^3.4.3",
-    "epub-gen": "~0.0.20",
     "htmltidy2": "~0.3.0",
-    "jsdom": "~11.11.0",
+    "jsdom": "^13.2.0",
     "rss-parser": "~3.4.3",
     "sanitize-html": "~1.18.2",
     "streampub": "^1.9.0"

@@ -1,26 +1,38 @@
 const Streampub = require('streampub')
 
-class ToEpubConverter {
+module.exports = class ToEpubConverter {
 
-    convert(data, writeableStream) {
-        const epub = new Streampub({ title: data.title });
-        epub.setAuthor(data.author);
-        epub.pipe(writeableStream);
+    convert(epubData, writeableStream) {
+        epubData.fileExt = ".epub";
 
-        return new Promise((resole, reject) => {
+        return new Promise(resole => {
 
-            data.content.forEach((item, index, array) => {
-                const chapter = Streampub.newChapter(`Chapter ${index + 1}`, item.data, index, `chapter-${index}.xhtml`);
-                epub.write(chapter);
-                if (index + 1 === array.length) {
-                    epub.end()
+            const epub = new Streampub({ title: epubData.title });
+            epub.setAuthor(epubData.author);
+            epubData.content.forEach((chapterData, i, chapterArray) => {
+
+                epub.pipe(writeableStream);
+                epub.write(Streampub.newChapter(chapterData.title, chapterData.data, i, `chapter-${i}.xhtml`));
+
+                const extraEntiresArray = Array.from(chapterData.extraElements);
+                extraEntiresArray.forEach(([key, value], j, array) => {
+                    
+                    epub.write(Streampub.newFile(key, value))
+
+                    const allElementsProcessed = i + 1 === chapterArray.length && j + 1 === array.length;
+                    if (allElementsProcessed) {
+                        this.finishProcessing(epub, resole, writeableStream);
+                    }
+                });
+                if (chapterData.extraElements.size === 0) {
+                    this.finishProcessing(epub, resole, writeableStream);
                 }
-                resole(writeableStream);
             });
-        })
+        });
+    }
 
+    finishProcessing(epub, resole, writeableStream) {
+        epub.end();
+        resole(writeableStream);
     }
 }
-
-
-module.exports = ToEpubConverter;

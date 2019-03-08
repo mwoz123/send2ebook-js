@@ -1,6 +1,6 @@
 const ftp = require("basic-ftp")
 
-class FtpStorage {
+module.exports = class FtpStorage {
 
     constructor() {
         this.ftpClient = new ftp.Client();
@@ -11,7 +11,7 @@ class FtpStorage {
         await this.ftpClient.access(connectionSettings)
     }
 
-    async upload(stream, remotePath) {
+    async save(stream, remotePath) {
         await this.ftpClient.upload(stream, remotePath)
         console.log('file succesfully send to ftp ');
     }
@@ -20,5 +20,3 @@ class FtpStorage {
         this.ftpClient.close();
     }
 }
-
-module.exports = FtpStorage;
