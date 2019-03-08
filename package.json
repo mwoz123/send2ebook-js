@@ -20,6 +20,7 @@
     "htmltidy2": "~0.3.0",
     "jsdom": "^13.2.0",
     "rss-parser": "~3.4.3",
+    "rxjs": "^6.4.0",
     "sanitize-html": "~1.18.2",
     "streampub": "^1.9.0"
   }

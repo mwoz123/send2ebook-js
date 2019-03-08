@@ -2,6 +2,8 @@ const FtpStorage = require("./output/ftp/ftpStorage")
 const ToEpubConverter = require('./converter/toEpubConverter');
 const DuplexStream = require('./model/duplexStream');
 const UrlInputProcessor = require('./input/urlInputProcessor');
+const { merge, tap } = require("rxjs/operators")
+
 module.exports = class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
@@ -10,24 +12,27 @@ module.exports = class Send2Ebook {
     }
   }
 
-
   async process([...urls], outputname) {
 
     const errors = new Map();
 
     const urlInputProcessor = new UrlInputProcessor();
-    urlInputProcessor.gatherEbookData(urls, errors).then(epubData => {
-      errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
-      if (epubData.content.length > 0) {
+    const data = urlInputProcessor.gatherEbookData(urls, errors);
+    data.pipe(tap(console.log)
+      )
+      .subscribe(epubData => {
+        errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
-        this.obtainTitle(outputname, epubData);
+        if (epubData.content.length > 0) {
 
-        this.convertToEpubAndSaveToFtp(epubData);
-      } else {
-        throw ("Can't create Epub without context.");
-      }
-    });
+          this.obtainTitle(outputname, epubData);
+
+          this.convertToEpubAndSaveToFtp(epubData);
+        } else {
+          throw ("Can't create Epub without context.");
+        }
+      });
   }
 
   obtainTitle(outputname, epubData) {
