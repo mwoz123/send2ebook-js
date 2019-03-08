@@ -65,22 +65,24 @@ module.exports = class UrlInputProcessor {
                 }).then((imgResp) => {
                     elements.set(name, imgResp.data);
                     img.setAttribute("src", name);
-                    if (index + 1 === imgs.length && resolveNow) {
-                        chapterData.data = dom.serialize();
-                        resolve(ebookData);
-                    }
+                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom)
                 }).catch(err => {
                     console.log("Error processing img: " + img.src + " error: " + err);
-                    if (index + 1 === imgs.length && resolveNow) {
-                        resolve(ebookData);
-                        chapterData.data = dom.serialize();
-                    }
-                });
+                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom)
+                })
             } else {
                 console.log("Allready processing: " + img.src);
                 const imgFileName = allreadyProcessing.get(img.src);
                 img.setAttribute("src", imgFileName);
+                this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom);
             }
+        }
+    }
+
+    resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom) {
+        if (index + 1 === imgs.length && resolveNow) {
+            chapterData.data = dom.serialize();
+            resolve(ebookData);
         }
     }
 
