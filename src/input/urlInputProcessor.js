@@ -47,13 +47,17 @@ module.exports = class UrlInputProcessor {
         const chapterData = ebookData.content[i];
         const dom = new JSDOM(html);
 
-        const elements = new Map();
-        chapterData.extraElements = elements;
-
-        const imgs = dom.window.document.querySelectorAll("img");
+        chapterData.extraElements =  new Map();
         const allreadyProcessing = new Map();
 
         // imgs.forEach((img, index, array) => { //TODO find way to async update DOM 
+        await this.processImages(allreadyProcessing, resolveNow, resolve, ebookData, chapterData, dom);
+    }
+
+    async processImages(allreadyProcessing, resolveNow, resolve, ebookData, chapterData, dom) {
+        
+        const imgs = dom.window.document.querySelectorAll("img");
+
         for (let index = 0; index < imgs.length; index++) {
             let img = imgs[index];
             if (img.src && !allreadyProcessing.has(img.src)) {
@@ -63,14 +67,15 @@ module.exports = class UrlInputProcessor {
                 await axios.get(img.src, {
                     responseType: 'stream'
                 }).then((imgResp) => {
-                    elements.set(name, imgResp.data);
+                    chapterData.extraElements.set(name, imgResp.data);
                     img.setAttribute("src", name);
-                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom)
+                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom);
                 }).catch(err => {
                     console.log("Error processing img: " + img.src + " error: " + err);
-                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom)
-                })
-            } else {
+                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom);
+                });
+            }
+            else {
                 console.log("Allready processing: " + img.src);
                 const imgFileName = allreadyProcessing.get(img.src);
                 img.setAttribute("src", imgFileName);
@@ -94,7 +99,7 @@ module.exports = class UrlInputProcessor {
 
 
     ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle) {
-        if (urls.length == 1 && !ebookData.outputname) {
+        if (urls.length == 1) {
             ebookData.title = docTitle;
         }
     }

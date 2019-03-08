@@ -31,7 +31,7 @@ module.exports = class Send2Ebook {
   }
 
   obtainTitle(outputname, epubData) {
-    epubData.title = outputname ? outputname : this.titleFromDate; //TODO recator to  |
+    epubData.title = outputname || epubData.title || this.titleFromDate();
   }
 
   titleFromDate() {
