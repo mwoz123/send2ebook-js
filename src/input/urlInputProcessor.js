@@ -15,7 +15,7 @@ module.exports = class UrlInputProcessor {
             content: []
         }
 
-        return new Promise((resolve, reject) => urls.map(async (url, index, array) => {
+        return new Promise(res => Promise.all(urls.map((url) => new Promise(async (resolve, reject) => {
             console.log(`Processing: ${url}`);
             try {
                 const response = await axios.get(url); //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
@@ -26,36 +26,35 @@ module.exports = class UrlInputProcessor {
 
                 const cleanedHtml = await this.sanitarizeData(url, response);
 
-                ebookData.content[index] = {
+                const chapterData = {
                     title: docTitle,
                     data: cleanedHtml,
                     source: url,
                 };
 
-                const resolveNow = index + 1 === array.length;
+                await this.addAdditionalContent(cleanedHtml, chapterData);
 
-                this.addAdditionalContent(cleanedHtml, ebookData, index, resolveNow, resolve);
+                resolve(chapterData);
 
             }
             catch (err) {
                 errors.set(url, err);
             }
-        }));
+        }))).then(chapterData => {ebookData.content.push(chapterData); res(ebookData) }));
     }
 
-    async addAdditionalContent(html, ebookData, i, resolveNow, resolve) {
-        const chapterData = ebookData.content[i];
+    async addAdditionalContent(html, chapterData) {
         const dom = new JSDOM(html);
 
-        chapterData.extraElements =  new Map();
+        chapterData.extraElements = new Map();
         const allreadyProcessing = new Map();
 
         // imgs.forEach((img, index, array) => { //TODO find way to async update DOM 
-        await this.processImages(allreadyProcessing, resolveNow, resolve, ebookData, chapterData, dom);
+        await this.processImages(allreadyProcessing, chapterData, dom);
     }
 
-    async processImages(allreadyProcessing, resolveNow, resolve, ebookData, chapterData, dom) {
-        
+    async processImages(allreadyProcessing, chapterData, dom) {
+
         const imgs = dom.window.document.querySelectorAll("img");
 
         for (let index = 0; index < imgs.length; index++) {
@@ -69,27 +68,18 @@ module.exports = class UrlInputProcessor {
                 }).then((imgResp) => {
                     chapterData.extraElements.set(name, imgResp.data);
                     img.setAttribute("src", name);
-                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom);
                 }).catch(err => {
                     console.log("Error processing img: " + img.src + " error: " + err);
-                    this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom);
                 });
             }
             else {
                 console.log("Allready processing: " + img.src);
                 const imgFileName = allreadyProcessing.get(img.src);
                 img.setAttribute("src", imgFileName);
-                this.resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom);
             }
         }
     }
 
-    resolveIfFinished(index, imgs, resolveNow, resolve, ebookData, chapterData, dom) {
-        if (index + 1 === imgs.length && resolveNow) {
-            chapterData.data = dom.serialize();
-            resolve(ebookData);
-        }
-    }
 
     extractFilename(url) {
         const path = require('path');
