@@ -4,43 +4,87 @@ const sanitizeHtml = require('sanitize-html');
 const absolutify = require('absolutify')
 const URL = require('url');
 const { tidy } = require('htmltidy2');
+const { of, Observable, from, bindCallback } = require("rxjs");
+const { tap, map, flatMap, combineLatest, zip, retry, switchMap, skip } = require("rxjs/operators");
+// const { create } = require("rxjs-spy");
+// const spy = create();
 
 module.exports = class UrlInputProcessor {
 
 
-    async gatherEbookData(urls, errors) {
+    gatherEbookData(urls, errors) {
 
         const ebookData = {
             author: "Send2Ebook",
             content: []
         }
 
-        return new Promise(res => Promise.all(urls.map((url) => new Promise(async (resolve, reject) => {
+        urls.forEach(url => {
             console.log(`Processing: ${url}`);
-            try {
-                const response = await axios.get(url); //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
+            const url$ = of(url);
+            const responseData$ = url$.pipe(
+                flatMap(u => axios.get(u)),
+                retry(3),
+                map(resp => resp.data),
+            );
 
-                const dom = new JSDOM(response.data);
-                const docTitle = dom.window.document.title;
-                this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);  //TODO move it to send2ebook.js
+            const dom$ = responseData$.pipe(
+                map(data => new JSDOM(data))
+            )
+            const title$ = dom$.pipe(
+                map(dom => dom.window.document.title),
+                // tap(console.log)
+            )
 
-                const cleanedHtml = await this.sanitarizeData(url, response);
 
-                const chapterData = {
-                    title: docTitle,
-                    data: cleanedHtml,
-                    source: url,
-                };
+            const sanitarized$ = this.sanitarizeData(url$, responseData$);
 
-                await this.addAdditionalContent(cleanedHtml, chapterData);
+            const chapterData$ = sanitarized$.pipe(
+                zip(title$, url$),
+                map(arr => {
+                    return {
+                        data: arr[0],
+                        title: arr[1],
+                        source: arr[2],
+                    }
+                })
+            )
+            chapterData$.subscribe(
+                e => {
+                    ebookData.content.push(e);
+                    debugger;
+                },
+                console.error);
+        });
 
-                resolve(chapterData);
+        return ebookData;
 
-            }
-            catch (err) {
-                errors.set(url, err);
-            }
-        }))).then(chapterData => {ebookData.content.push(chapterData); res(ebookData) }));
+        // return new Promise(res => Promise.all(urls.map((url) => new Promise(async (resolve, reject) => {
+        //     console.log(`Processing: ${url}`);
+        //     try {
+        //         const response = await axios.get(url); //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
+
+        //         const dom = new JSDOM(response.data);
+        //         const docTitle = dom.window.document.title;
+        //         this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);  //TODO move it to send2ebook.js
+
+        //         const cleanedHtml = await this.sanitarizeData(url, response);
+
+        //         const chapterData = {
+        //             title: docTitle,
+        //             data: cleanedHtml,
+        //             source: url,
+        //         };
+
+        //         await this.addAdditionalContent(cleanedHtml, chapterData);
+
+        //         resolve(chapterData);
+
+        //     }
+        //     catch (err) {
+        //         errors.set(url, err);
+        //     }
+        // }))).then(chapterData => { ebookData.content.push(chapterData); res(ebookData) }));
     }
 
     async addAdditionalContent(html, chapterData) {
@@ -96,35 +140,42 @@ module.exports = class UrlInputProcessor {
 
 
 
-    async sanitarizeData(url, response) {
+    sanitarizeData(url$, response$) {
 
-        const site = this.getSite(url);
+        // const response$ = url$.pipe(flatMap(a => axios.get(a),
+        //     retry(3),
+        //     map(resp => resp.data)),
+        //     tap(console.log)
+        // );
 
-        let parsed = absolutify(response.data, site);
+        const site$ = url$.pipe(
+            map(url => this.getSite(url)));
+        const absolute$ = response$.pipe(
+            zip(site$),
+            map(arr => absolutify(arr[0], arr[1])),
 
-        parsed = parsed.replace(/src=\'\/\//gm, `src='http://`);
-        parsed = parsed.replace(/src=\"\/\//gm, `src='http://`);
+        );
+        // return absolute$;
+        const tidy$ = absolute$.pipe(
 
-        // const cleanedHtml = await sanitizeHtml(parsed, {
-        //     allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'html', 'body', 'head', 'title', 'article', 'style', 'link' , 'section' , 'doctype']),
-        //     // preserveDoctypes: true,
-        //     // allowProtocolRelative: false,
-        //     exclusiveFilter: function (frame) {
-        //         return frame.tag === 'img' && !frame.attribs.src; //fix exception when empty <img /> 
-        //     }
-        // });
+            // tap(console.log),
+            map(a =>
+                a.replace(/src=\'\/\//gm, `src='http://`)), //TODO can be replaced with ' a.replace(/src=\('|")\/\//gm, `src='http://`)) ?
+            map(a =>
+                a.replace(/src=\"\/\//gm, `src='http://`)),
 
+            flatMap(parsed => {
+                const tidier$ = bindCallback(tidy);
+                return tidier$(parsed, { doctype: 'html5', hideComments: true })
+            }),
+            switchMap(d => from(d)),
+            skip(1),
+            // tap(e => {
+            //     console.log("e: " + e); debugger;
+            // }),
+        );
+        return tidy$
 
-        const validHtml = await new Promise((resolve, reject) => {
-            tidy(parsed, { doctype: 'html5', hideComments: true }, async (err, html) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(html);
-                }
-            });
-        });
-        return validHtml;
     }
 
 
