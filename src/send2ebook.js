@@ -48,6 +48,7 @@ module.exports = class Send2Ebook {
     try {
       const converter = new ToEpubConverter();
       await converter.convert(epubData, duplexStream);
+
       const fileName = this.sanitarizeName(epubData.title) + epubData.fileExt;
       await this.saveOutput(duplexStream, fileName);
     }

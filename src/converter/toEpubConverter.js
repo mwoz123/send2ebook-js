@@ -4,14 +4,16 @@ module.exports = class ToEpubConverter {
 
     convert(epubData, writeableStream) {
         epubData.fileExt = ".epub";
+        epubData.author = "Send2Ebook";
 
         return new Promise(resole => {
 
             const epub = new Streampub({ title: epubData.title });
             epub.setAuthor(epubData.author);
+            epub.pipe(writeableStream);
+
             epubData.forEach((chapterData, i, chapterArray) => {
 
-                epub.pipe(writeableStream);
                 epub.write(Streampub.newChapter(chapterData.title, chapterData.data, i, `chapter-${i}.xhtml`));
 
                 // const extraEntiresArray = Array.from(chapterData.extraElements);
