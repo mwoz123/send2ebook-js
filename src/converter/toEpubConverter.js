@@ -9,24 +9,24 @@ module.exports = class ToEpubConverter {
 
             const epub = new Streampub({ title: epubData.title });
             epub.setAuthor(epubData.author);
-            epubData.content.forEach((chapterData, i, chapterArray) => {
+            epubData.forEach((chapterData, i, chapterArray) => {
 
                 epub.pipe(writeableStream);
                 epub.write(Streampub.newChapter(chapterData.title, chapterData.data, i, `chapter-${i}.xhtml`));
 
-                const extraEntiresArray = Array.from(chapterData.extraElements);
-                extraEntiresArray.forEach(([key, value], j, array) => {
+                // const extraEntiresArray = Array.from(chapterData.extraElements);
+                // extraEntiresArray.forEach(([key, value], j, array) => {
                     
-                    epub.write(Streampub.newFile(key, value))
+                //     epub.write(Streampub.newFile(key, value))
 
-                    const allElementsProcessed = i + 1 === chapterArray.length && j + 1 === array.length;
+                    const allElementsProcessed = i + 1 === chapterArray.length ; //&& j + 1 === array.length;
                     if (allElementsProcessed) {
                         this.finishProcessing(epub, resole, writeableStream);
                     }
-                });
-                if (chapterData.extraElements.size === 0) {
-                    this.finishProcessing(epub, resole, writeableStream);
-                }
+                // });
+                // if (chapterData.extraElements.size === 0) {
+                    // this.finishProcessing(epub, resole, writeableStream);
+                // }
             });
         });
     }

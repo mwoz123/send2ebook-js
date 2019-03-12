@@ -2,6 +2,7 @@ const FtpStorage = require("./output/ftp/ftpStorage")
 const ToEpubConverter = require('./converter/toEpubConverter');
 const DuplexStream = require('./model/duplexStream');
 const UrlInputProcessor = require('./input/urlInputProcessor');
+const { toArray } = require("rxjs/operators");
 module.exports = class Send2Ebook {
 
   constructor({ host, user, pass, port = 21, folder = "/" }) {
@@ -16,10 +17,13 @@ module.exports = class Send2Ebook {
     const errors = new Map();
 
     const urlInputProcessor = new UrlInputProcessor();
-    urlInputProcessor.gatherEbookData(urls, errors).then(epubData => {
-      errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
+    const chapterDataSubject$ = urlInputProcessor.gatherEbookData(urls, errors);
+    chapterDataSubject$.pipe(
+      toArray(),
+    ).subscribe(epubData => {
+      // errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
 
-      if (epubData.content.length > 0) {
+      if (epubData.length > 0) {
 
         this.obtainTitle(outputname, epubData);
 

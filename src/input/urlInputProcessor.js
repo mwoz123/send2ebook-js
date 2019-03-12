@@ -4,7 +4,7 @@ const sanitizeHtml = require('sanitize-html');
 const absolutify = require('absolutify')
 const URL = require('url');
 const { tidy } = require('htmltidy2');
-const { of, Observable, from, bindCallback } = require("rxjs");
+const { of, Observable, from, bindCallback, Subject } = require("rxjs");
 const { tap, map, flatMap, combineLatest, zip, retry, switchMap, skip } = require("rxjs/operators");
 // const { create } = require("rxjs-spy");
 // const spy = create();
@@ -14,11 +14,12 @@ module.exports = class UrlInputProcessor {
 
     gatherEbookData(urls, errors) {
 
+        const chapterDataSubject = new Subject();
         const ebookData = {
             author: "Send2Ebook",
             content: []
         }
-
+        let i = 0;
         urls.forEach(url => {
             console.log(`Processing: ${url}`);
             const url$ = of(url);
@@ -33,10 +34,10 @@ module.exports = class UrlInputProcessor {
             )
             const title$ = dom$.pipe(
                 map(dom => dom.window.document.title),
-                // tap(console.log)
             )
 
 
+            //         await this.addAdditionalContent(cleanedHtml, chapterData);
             const sanitarized$ = this.sanitarizeData(url$, responseData$);
 
             const chapterData$ = sanitarized$.pipe(
@@ -49,15 +50,18 @@ module.exports = class UrlInputProcessor {
                     }
                 })
             )
+
             chapterData$.subscribe(
-                e => {
-                    ebookData.content.push(e);
-                    debugger;
+                cd => {
+                    chapterDataSubject.next(cd);
+                    if (++i === urls.length) {
+                        chapterDataSubject.complete();
+                    }
                 },
                 console.error);
         });
 
-        return ebookData;
+        return chapterDataSubject;
 
         // return new Promise(res => Promise.all(urls.map((url) => new Promise(async (resolve, reject) => {
         //     console.log(`Processing: ${url}`);
