@@ -24,7 +24,7 @@ module.exports = class UrlInputProcessor {
             console.log(`Processing: ${url}`);
             const url$ = of(url);
             const responseData$ = url$.pipe(
-                flatMap(u => axios.get(u)),
+                flatMap(u => axios.get(u)), //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
                 retry(3),
                 map(resp => resp.data),
             );
@@ -35,7 +35,7 @@ module.exports = class UrlInputProcessor {
             const title$ = dom$.pipe(
                 map(dom => dom.window.document.title),
             )
-
+            // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);  //TODO move it to send2ebook.js
 
             //         await this.addAdditionalContent(cleanedHtml, chapterData);
             const sanitarized$ = this.sanitarizeData(url$, responseData$);
@@ -62,33 +62,6 @@ module.exports = class UrlInputProcessor {
         });
 
         return chapterDataSubject;
-
-        // return new Promise(res => Promise.all(urls.map((url) => new Promise(async (resolve, reject) => {
-        //     console.log(`Processing: ${url}`);
-        //     try {
-        //         const response = await axios.get(url); //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
-
-        //         const dom = new JSDOM(response.data);
-        //         const docTitle = dom.window.document.title;
-        //         this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);  //TODO move it to send2ebook.js
-
-        //         const cleanedHtml = await this.sanitarizeData(url, response);
-
-        //         const chapterData = {
-        //             title: docTitle,
-        //             data: cleanedHtml,
-        //             source: url,
-        //         };
-
-        //         await this.addAdditionalContent(cleanedHtml, chapterData);
-
-        //         resolve(chapterData);
-
-        //     }
-        //     catch (err) {
-        //         errors.set(url, err);
-        //     }
-        // }))).then(chapterData => { ebookData.content.push(chapterData); res(ebookData) }));
     }
 
     async addAdditionalContent(html, chapterData) {
@@ -146,12 +119,6 @@ module.exports = class UrlInputProcessor {
 
     sanitarizeData(url$, response$) {
 
-        // const response$ = url$.pipe(flatMap(a => axios.get(a),
-        //     retry(3),
-        //     map(resp => resp.data)),
-        //     tap(console.log)
-        // );
-
         const site$ = url$.pipe(
             map(url => this.getSite(url)));
         const absolute$ = response$.pipe(
@@ -159,10 +126,8 @@ module.exports = class UrlInputProcessor {
             map(arr => absolutify(arr[0], arr[1])),
 
         );
-        // return absolute$;
         const tidy$ = absolute$.pipe(
 
-            // tap(console.log),
             map(a =>
                 a.replace(/src=\'\/\//gm, `src='http://`)), //TODO can be replaced with ' a.replace(/src=\('|")\/\//gm, `src='http://`)) ?
             map(a =>
@@ -174,9 +139,6 @@ module.exports = class UrlInputProcessor {
             }),
             switchMap(d => from(d)),
             skip(1),
-            // tap(e => {
-            //     console.log("e: " + e); debugger;
-            // }),
         );
         return tidy$
 
