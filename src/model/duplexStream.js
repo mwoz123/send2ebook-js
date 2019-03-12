@@ -1,13 +1,15 @@
 const stream = require('stream')
 
-class DuplexStream extends stream.Duplex {
+module.exports = class DuplexStream extends stream.Duplex {
 
     constructor(options) {
         super(options)
+        this.total = 0;
     }
 
     _write(chunk, encoding, callback) {
         this.total += chunk.length
+        // console.log(this.total);
         this.push(chunk)
         callback()
     }
@@ -19,6 +21,3 @@ class DuplexStream extends stream.Duplex {
         console.log(`stream complete!`)
     }
 }
-
-
-module.exports = DuplexStream;
