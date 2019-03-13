@@ -5,7 +5,8 @@ const absolutify = require('absolutify')
 const URL = require('url');
 const { tidy } = require('htmltidy2');
 const { of, Observable, from, bindCallback, Subject } = require("rxjs");
-const { tap, map, flatMap, combineLatest, zip, retry, switchMap, skip, distinct, filter, toArray, catchError } = require("rxjs/operators");
+const { tap, map, flatMap, combineLatest, zip, retry, switchMap, skip,
+    distinct, filter, toArray, catchError, concat } = require("rxjs/operators");
 // const { create } = require("rxjs-spy");
 // const spy = create();
 
@@ -76,7 +77,7 @@ module.exports = class UrlInputProcessor {
 
     addAdditionalContent(sanitarized$, chapterData) {
         const dom$ = sanitarized$.pipe(
-            map(dom => new JSDOM(dom))
+            map(html => new JSDOM(html))
         )
         // const dom = new JSDOM(html);
 
@@ -93,8 +94,9 @@ module.exports = class UrlInputProcessor {
         const allImages$ = dom$.pipe(
             flatMap(dom => from(dom.window.document.querySelectorAll("img"))),
             filter(img => !!img.src),
-            filter(img => ! img.src.startsWith("http://image/")), //FIXME fix absolutify to not change ' src="data:image/png;base64'..
-            filter(img => ! img.src.startsWith("https://image/")),
+            // tap(img => console.log(img.src)),
+            filter(img => !
+                img.src.startsWith("data:image")), //TODO: catch and migrate to observable
             distinct(img => img.src)
         );
 
@@ -103,14 +105,14 @@ module.exports = class UrlInputProcessor {
         allImages$.subscribe(
             img => {
                 const img$ = of(img);
-                const imgSrc$ = img$.pipe(
+                const originalImgSrc$ = img$.pipe(
                     // tap(e => console.log(e.src)),
                     map(img => img.src)
                 );
-                const fileWithoutPath$ = imgSrc$.pipe(
+                const fileWithoutPath$ = originalImgSrc$.pipe(
                     map(this.extractFilename)
                 );
-                const imgStream$ = imgSrc$.pipe(
+                const imgStream$ = originalImgSrc$.pipe(
                     flatMap(imgSrc => axios.get(imgSrc, {
                         responseType: 'stream',
                         // httpAgent: false
@@ -121,17 +123,20 @@ module.exports = class UrlInputProcessor {
                     ),
                     map(resp => resp.data),
                 )
+                img$.pipe(zip(fileWithoutPath$),
+                ).subscribe(arr => {
+                    arr[0].src = arr[1]
+                    // console.log(arr);
+                    arr[0].setAttribute("src", arr[1]);
+                });
+
                 const filenameAndImgStream$ = fileWithoutPath$.pipe(
-                    zip(imgStream$, img$),
-                    tap(arr => {
-                        arr[2].src = arr[0];
-                        // console.log(arr);
-                        arr[2].setAttribute("src", arr[0]);
-                    }),
+                    zip(imgStream$),
                     map(arr => {
                         return {
                             fileName: arr[0],
                             data: arr[1]
+
                         }
                     }),
                     tap(console.log)
@@ -141,7 +146,12 @@ module.exports = class UrlInputProcessor {
                 );
             },
             console.error,
-            () => chapterImgSubject.complete()
+            () => {
+                chapterImgSubject.complete(); 
+                dom$.subscribe(
+                    html => console.log(html.serialize())
+                )
+            }
         );
 
         return chapterImgSubject;
