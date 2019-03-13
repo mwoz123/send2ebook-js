@@ -16,10 +16,7 @@ module.exports = class UrlInputProcessor {
     gatherEbookData(urls, errors) {
 
         const chapterDataSubject = new Subject();
-        const ebookData = {
-            author: "Send2Ebook",
-            content: []
-        }
+
         let i = 0;
         urls.forEach(url => {
             console.log(`Processing: ${url}`);
@@ -78,83 +75,87 @@ module.exports = class UrlInputProcessor {
     addAdditionalContent(sanitarized$, chapterData) {
         const dom$ = sanitarized$.pipe(
             map(html => new JSDOM(html))
-        )
-        // const dom = new JSDOM(html);
-
-        // chapterData.extraElements = new Map();
-        // const allreadyProcessing = new Map();
-
-        // imgs.forEach((img, index, array) => { //TODO find way to async update DOM 
-        //     await this.processImages(allreadyProcessing, chapterData, dom);
-        // }
-
-        // async processImages(allreadyProcessing, chapterData, dom) {
-
-        // const imgs = dom.window.document.querySelectorAll("img");
-        const allImages$ = dom$.pipe(
-            flatMap(dom => from(dom.window.document.querySelectorAll("img"))),
-            filter(img => !!img.src),
-            // tap(img => console.log(img.src)),
-            filter(img => !
-                img.src.startsWith("data:image")), //TODO: catch and migrate to observable
-            distinct(img => img.src)
         );
+        const chapterImagesSubject = new Subject();
+        dom$.subscribe(dom => { //TODO : why it doens't update DOM with .pipe() without .subscribtion?
 
-        const chapterImgSubject = new Subject();
+            // const imgs = dom.window.document.querySelectorAll("img");
+            const allImages$ = from(dom.window.document.querySelectorAll("img"));
+            const filteredImages$ = allImages$.pipe(
+                // filter(img => !!img),
+                filter(img => !!img.src),
+                // tap(img => console.log(img.src)),
+                filter(img => !
+                    img.src.startsWith("data:image")),
+                distinct(img => img.src)
+            );
 
-        allImages$.subscribe(
-            img => {
-                const img$ = of(img);
-                const originalImgSrc$ = img$.pipe(
-                    // tap(e => console.log(e.src)),
-                    map(img => img.src)
-                );
-                const fileWithoutPath$ = originalImgSrc$.pipe(
-                    map(this.extractFilename)
-                );
-                const imgStream$ = originalImgSrc$.pipe(
-                    flatMap(imgSrc => axios.get(imgSrc, {
-                        responseType: 'stream',
-                        // httpAgent: false
-                    })),
-                    retry(3),
-                    catchError(err =>
-                        console.error(err)
-                    ),
-                    map(resp => resp.data),
-                )
-                img$.pipe(zip(fileWithoutPath$),
-                ).subscribe(arr => {
-                    arr[0].src = arr[1]
-                    // console.log(arr);
-                    arr[0].setAttribute("src", arr[1]);
-                });
+            filteredImages$.subscribe(
+                img => {
+                    const img$ = of(img);
+                    const originalImgSrc$ = img$.pipe(
+                        // tap(e => console.log(e.src)),
+                        map(img => img.src)
+                    );
+                    const fileWithoutPath$ = originalImgSrc$.pipe(
+                        map(this.extractFilename)
+                    );
+                    const imgStream$ = originalImgSrc$.pipe(
+                        flatMap(imgSrc => axios.get(imgSrc, {
+                            responseType: 'stream',
+                            // httpAgent: false
+                        })),
+                        retry(3),
+                        catchError(err =>
+                            console.error(
+                                `Error requsting for: '${err.request._currentUrl}'. Error: ${err.message}`)
+                        ),
+                        map(resp => resp.data),
 
-                const filenameAndImgStream$ = fileWithoutPath$.pipe(
-                    zip(imgStream$),
-                    map(arr => {
-                        return {
-                            fileName: arr[0],
-                            data: arr[1]
+                    )
+                    // img$.pipe(zip(fileWithoutPath$),
+                    //     tap(console.log),
+                    //     tap(
+                    //     })
+                    // ).subscribe(() => {
 
-                        }
-                    }),
-                    tap(console.log)
-                )
-                filenameAndImgStream$.subscribe(imgData =>
-                    chapterImgSubject.next(imgData)
-                );
-            },
-            console.error,
-            () => {
-                chapterImgSubject.complete(); 
-                dom$.subscribe(
-                    html => console.log(html.serialize())
-                )
-            }
-        );
+                    const filenameAndImgStream$ = fileWithoutPath$.pipe(
+                        zip(imgStream$, img$),
+                        tap(arr => {
+                            // console.log(arr);
+                            arr[2].src = arr[0]
+                            // console.log(arr);
+                            arr[2].setAttribute("src", arr[0])
+                        }),
+                        map(arr => {
+                            return {
+                                fileName: arr[0],
+                                data: arr[1]
 
-        return chapterImgSubject;
+                            }
+                        }),
+                        
+                        // tap(console.log)
+                    );
+                    filenameAndImgStream$.subscribe(imgData => {
+                        chapterImagesSubject.next(imgData);
+                    });
+                    // });
+
+                },
+                console.error,
+                () => {
+                    const lateDOM$ = defer(dom.serialize())
+                    complete
+                    chapterImagesSubject.complete();
+                    // dom$.subscribe(
+                    // html => 
+                    // console.log()
+                    // )
+                }
+            );
+        })
+        return chapterImagesSubject;
 
         // for (let index = 0; index < imgs.length; index++) {
         //     let img = imgs[index];
