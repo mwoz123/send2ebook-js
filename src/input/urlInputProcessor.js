@@ -6,7 +6,7 @@ const URL = require('url');
 const { tidy } = require('htmltidy2');
 const { of, Observable, from, bindCallback, Subject } = require("rxjs");
 const { tap, map, flatMap, combineLatest, zip, retry, switchMap, skip,
-    distinct, filter, toArray, catchError, concat } = require("rxjs/operators");
+    distinct, filter, toArray, catchError, concat, groupBy, mergeMap } = require("rxjs/operators");
 // const { create } = require("rxjs-spy");
 // const spy = create();
 
@@ -16,7 +16,10 @@ module.exports = class UrlInputProcessor {
     gatherEbookData(urls, errors) {
 
         const chapterDataSubject = new Subject();
-
+        const ebookData = {
+            author: "Send2Ebook",
+            content: []
+        }
         let i = 0;
         urls.forEach(url => {
             console.log(`Processing: ${url}`);
@@ -25,7 +28,7 @@ module.exports = class UrlInputProcessor {
                 flatMap(u => axios.get(u)), //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
                 retry(3),
                 catchError(err =>
-                    console.error(err)
+                    console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
                 ),
                 map(resp => resp.data),
 
@@ -48,7 +51,8 @@ module.exports = class UrlInputProcessor {
             // });
 
             const chapterData$ = sanitarized$.pipe(
-                zip(title$, url$, imgs$.pipe(toArray)),
+                zip(title$, url$,
+                    imgs$.pipe(toArray)),
                 map(arr => {
                     return {
                         data: arr[0],
@@ -74,27 +78,24 @@ module.exports = class UrlInputProcessor {
 
     addAdditionalContent(sanitarized$, chapterData) {
         const dom$ = sanitarized$.pipe(
-            map(html => new JSDOM(html))
-        );
-        const chapterImagesSubject = new Subject();
-        dom$.subscribe(dom => { //TODO : why it doens't update DOM with .pipe() without .subscribtion?
+            map(dom => new JSDOM(dom))
+        )
 
-            // const imgs = dom.window.document.querySelectorAll("img");
-            const allImages$ = from(dom.window.document.querySelectorAll("img"));
-            const filteredImages$ = allImages$.pipe(
-                // filter(img => !!img),
+        const chapterImgSubject = new Subject();
+
+        dom$.subscribe(dom => {
+            const imgs$ = from(dom.window.document.querySelectorAll("img"))
+            const filteredImages$ = imgs$.pipe(
                 filter(img => !!img.src),
-                // tap(img => console.log(img.src)),
-                filter(img => !
-                    img.src.startsWith("data:image")),
-                distinct(img => img.src)
+                filter(img => !img.src.startsWith("data:image")), //can stay as is in html. No need to do anything
+
             );
 
-            filteredImages$.subscribe(
+            filteredImages$.pipe(distinct(img => img.src)
+            ).subscribe(
                 img => {
                     const img$ = of(img);
                     const originalImgSrc$ = img$.pipe(
-                        // tap(e => console.log(e.src)),
                         map(img => img.src)
                     );
                     const fileWithoutPath$ = originalImgSrc$.pipe(
@@ -107,77 +108,50 @@ module.exports = class UrlInputProcessor {
                         })),
                         retry(3),
                         catchError(err =>
-                            console.error(
-                                `Error requsting for: '${err.request._currentUrl}'. Error: ${err.message}`)
+                            console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
                         ),
                         map(resp => resp.data),
-
                     )
-                    // img$.pipe(zip(fileWithoutPath$),
-                    //     tap(console.log),
-                    //     tap(
-                    //     })
-                    // ).subscribe(() => {
-
                     const filenameAndImgStream$ = fileWithoutPath$.pipe(
-                        zip(imgStream$, img$),
-                        tap(arr => {
-                            // console.log(arr);
-                            arr[2].src = arr[0]
-                            // console.log(arr);
-                            arr[2].setAttribute("src", arr[0])
-                        }),
+                        zip(imgStream$, img$, originalImgSrc$),
+
                         map(arr => {
                             return {
                                 fileName: arr[0],
+                                // originalSrc: arr[2],
                                 data: arr[1]
 
                             }
                         }),
-                        
                         // tap(console.log)
+                    )
+                    filenameAndImgStream$.subscribe(imgData =>
+                        chapterImgSubject.next(imgData)
                     );
-                    filenameAndImgStream$.subscribe(imgData => {
-                        chapterImagesSubject.next(imgData);
-                    });
-                    // });
+                }
+            );
 
+            filteredImages$.subscribe(
+                img => {
+                    img.src = this.extractFilename(img.src);
                 },
                 console.error,
                 () => {
-                    const lateDOM$ = defer(dom.serialize())
-                    complete
-                    chapterImagesSubject.complete();
-                    // dom$.subscribe(
-                    // html => 
-                    // console.log()
-                    // )
+                    chapterImgSubject.complete();
+                    // const imgs = dom.window.document.querySelectorAll("img")
+                    // from(imgs).pipe(
+                    //     map(img => img.src),
+                    //     groupBy(img => img),
+                    //     // groupBy(img=> img.src),
+
+                    //     mergeMap(group => group.pipe(toArray()))
+                    // ).subscribe(console.log)
                 }
             );
-        })
-        return chapterImagesSubject;
 
-        // for (let index = 0; index < imgs.length; index++) {
-        //     let img = imgs[index];
-        //     if (img.src && !allreadyProcessing.has(img.src)) {
-        //         console.log("Processing img: " + img.src);
-        //         const name = this.extractFilename(img.src);
-        //         allreadyProcessing.set(img.src, name);
-        //         await axios.get(img.src, {
-        //             responseType: 'stream'
-        //         }).then((imgResp) => {
-        //             chapterData.extraElements.set(name, imgResp.data);
-        //             img.setAttribute("src", name);
-        //         }).catch(err => {
-        //             console.log("Error processing img: " + img.src + " error: " + err);
-        //         });
-        //     }
-        //     else {
-        //         console.log("Allready processing: " + img.src);
-        //         const imgFileName = allreadyProcessing.get(img.src);
-        //         img.setAttribute("src", imgFileName);
-        //     }
-        // }
+        })
+        return chapterImgSubject;
+
     }
 
 
@@ -207,10 +181,8 @@ module.exports = class UrlInputProcessor {
         );
         const tidy$ = absolute$.pipe(
 
-            map(a =>
-                a.replace(/src=\'\/\//gm, `src='http://`)), //TODO can be replaced with ' a.replace(/src=\('|")\/\//gm, `src='http://`)) ?
-            map(a =>
-                a.replace(/src=\"\/\//gm, `src='http://`)),
+            map(a => a.replace(/src=\'\/\//gm, `src='http://`)), //TODO can be replaced with ' a.replace(/src=\('|")\/\//gm, `src='http://`)) ?
+            map(a => a.replace(/src=\"\/\//gm, `src='http://`)),
 
             flatMap(parsed => {
                 const tidier$ = bindCallback(tidy);
