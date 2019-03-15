@@ -88,8 +88,8 @@ module.exports = class UrlInputProcessor {
                 filter(img => !img.src.startsWith("data:image")), //can stay as is in html. No need to do anything
 
             );
-            const x = filteredImages$.pipe(
-                // distinct(img => img.src), // FIXME: distinct but must subscibe to change src in all <img>s
+            filteredImages$.pipe(
+                // distinct(img => img.src), // FIXME: distinct but must subscibe to all (change src in all <img>s)
                 flatMap(img => (axios.get(img.src, {
                     responseType: 'stream',
                     // httpAgent: false
@@ -98,101 +98,21 @@ module.exports = class UrlInputProcessor {
                 catchError(err =>
                     console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
                 ),
-                // filter(resp => !!resp.data),
-                // map(resp => resp.data),
-                // map(async img => {
-                //     return {
-                //         oldSrc: img.src,
-                //         newSrc: this.extractFilename(img.src),
-                //         img: img,
-                //         // imgStream: 
-                //     }
-                // }),
-                // concat(this.downloadStream(img.oldSrc)),
-                // // tap(imgObj=> imgObj.img.src = imgObj.newSrc),
-                tap(e =>
-                    console.log(e)),
-                // // switchMap(img =>
-                //     flatMap(img=> ),
-                //     tap(console.log),
-                //     retry(3),
-                //     catchError(err =>
-                //         console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
-                //     ),
-                //     tap(e=> 
-                //         console.log(e)
-                //         )
-                // // )
-
-            );//
-            x.pipe().subscribe(
+                // tap(e =>
+                //     console.log(e)),
+            ).pipe().subscribe(
                 e => {
                     e.img.oldSrc = e.img.src;
                     e.img.src = this.extractFilename(e.img.src);
+                    // console.log(dom.si);
                     chapterImgSubject.next(e);
                 },
                 console.error,
+                () => { 
+                    chapterImgSubject.complete(); 
+                    console.log("complete img");
+            
 
-                () => { chapterImgSubject.complete(); console.log("complete img") })
-
-            // filteredImages$.pipe(distinct(img => img.src),
-            // // map(img=> {img: img, })
-            // ).subscribe(
-            //     img => {
-            //         const img$ = of(img);
-            //         const originalImgSrc$ = img$.pipe(
-            //             map(img => img.src)
-            //         );
-            //         const fileWithoutPath$ = originalImgSrc$.pipe(
-            //             map(this.extractFilename)
-            //         );
-            //         const imgStream$ = originalImgSrc$.pipe(
-            //             flatMap(imgSrc => axios.get(imgSrc, {
-            //                 responseType: 'stream',
-            //                 // httpAgent: false
-            //             })),
-            //             retry(3),
-            //             catchError(err =>
-            //                 console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
-            //             ),
-            //             filter(resp => !!resp.data),
-            //             map(resp => resp.data),
-            //         )
-            //         const filenameAndImgStream$ = fileWithoutPath$.pipe(
-            //             zip(imgStream$, img$, originalImgSrc$),
-
-            //             map(arr => {
-            //                 return {
-            //                     fileName: arr[0],
-            //                     // originalSrc: arr[2],
-            //                     data: arr[1]
-
-            //                 }
-            //             }),
-            //             // tap(console.log)
-            //         )
-            //         filenameAndImgStream$.subscribe(imgData => {
-            //             console.log("adding data and chnagin src " + img.src );
-            //             x.push(imgData);
-            //             // chapterImgSubject.next(imgData)
-            //             img.src = this.extractFilename(img.src);
-            //         });
-        },
-            console.err,
-            () => {
-                console.log("completed Chapter data");
-
-            }
-        );
-
-        // filteredImages$.subscribe(
-        //     img => {
-        //         // console.log(img.src);
-        //         img.src = this.extractFilename(img.src);
-        //     },
-        //     console.error,
-
-        // console.log(dom.serialize())
         // const imgs = dom.window.document.querySelectorAll("img")
         // from(imgs).pipe(
         //     map(img => img.src),
@@ -201,12 +121,16 @@ module.exports = class UrlInputProcessor {
 
         //     mergeMap(group => group.pipe(toArray()))
         // ).subscribe(console.log)
+            })
 
-        // );
+        },
+            console.err,
+            () => {
+                console.log("completed Chapter data");
 
-        // })
+            }
+        );
         return chapterImgSubject;
-        // return x;
     }
 
 
@@ -222,19 +146,6 @@ module.exports = class UrlInputProcessor {
             ebookData.title = docTitle;
         }
     }
-
-    async downloadStream(url) {
-        let data;
-        const prom = axios.get(url, {
-            responseType: 'stream',
-            // httpAgent: false
-        });
-        console.log("data " + data)
-        await prom.then(resp => data = resp.data);
-        console.log("data " + data)
-        return data;
-    }
-
 
 
     sanitarizeData(url$, response$) {
