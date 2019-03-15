@@ -1,7 +1,7 @@
 const Send2Ebook = require('./send2ebook');
-const { Observable, interval, of, from, Subject, empty, throwError } = require("rxjs");
-const { map, switchMap, flatMap, skip, distinct, filter, concat, mergeMap, 
-    tap, take,  zip, catchError } = require("rxjs/operators");
+const { Observable, interval, of, from, Subject, empty, throwError, Scheduler } = require("rxjs");
+const { map, switchMap, flatMap, skip, distinct, filter, concat, mergeMap, observeOn,
+    tap, take, zip, catchError } = require("rxjs/operators");
 
 // const { JSDOM } = require("jsdom");
 
@@ -173,17 +173,46 @@ const { map, switchMap, flatMap, skip, distinct, filter, concat, mergeMap,
 // from(["abc", "def" ]).pipe(map(item => item)).subscribe(log);    
 
 
-from(["abc", "def", "ght"]).subscribe(
+// from(["abc", "def", "ght"]).pipe(
+//     // // map(e => { return { a: e, b: interval(0).pipe(take(1)) } }),
+//     // flatMap(e => e.b),
+//     // take(2), tap(console.log)
+// ).subscribe(
 
-    e => {
-        console.log("start " + e)
-        interval(1500).pipe(take(1)).subscribe(console.log);
-        setTimeout(
-            () => { console.log("delayed " + e) },
-            1000
-        )
-        console.log("end " + e)
-    },
-    console.error,
-    () => console.log("ALL completed")
-)
+//     e => {
+//         console.log("start " + e.b.subscribe(console.log))
+//         // .subscribe(console.log);
+//         // setTimeout(
+//         //     () => { console.log("delayed " + e) },
+//         //     1000
+//         // )
+//         console.log("end " + e.a)
+//     },
+//     console.error,
+//     () => console.log("ALL completed")
+// )
+
+// RxJS v6+
+// import { delay } from 'rxjs/operators';
+// import { of, zip } from 'rxjs';
+const { delay } = require("rxjs/operators")
+// const {  Observable } = require("rxjs")
+
+const sourceOne = of('Hello');
+const sourceTwo = of('World!');
+const sourceThree = of('Goodbye');
+const sourceFour = of('World!');
+//wait until all observables have emitted a value then emit all as an array
+const example =
+    sourceOne.pipe(zip(
+        sourceTwo.pipe(delay(1000)),
+        sourceThree.pipe(delay(2000)),
+        (Observable.create(observer => {
+            setTimeout(e => observer.next(
+                sourceFour.pipe(flatMap(e => e)
+                )), 2000)
+        }))
+    ));
+//output: ["Hello", "World!", "Goodbye", "World!"]
+example.subscribe(val => console.log(val), null, e => console.log("complete"));
+

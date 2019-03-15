@@ -11,7 +11,8 @@
   },
   "scripts": {
     "start": "node ./src/app.js",
-    "debug": "node --inspect --inspect-brk ./src/app.js"
+    "debug": "node --inspect --inspect-brk ./src/app.js",
+    "debug-1": "node --inspect --inspect-brk ./src/app.1.js"
   },
   "dependencies": {
     "absolutify": "~0.1.0",
