@@ -78,7 +78,7 @@ module.exports = class UrlInputProcessor {
             chapterData$.subscribe( //TODO check if can be replace by chapterData$.subscribe(chapterDataSubject) or reverse
                 cd => {
                     chapterDataSubject.next(cd);
-                    console.log(cd);
+                    // console.log(cd);
                     if (++i === urls.length) {
                         chapterDataSubject.complete();
                     }
@@ -110,11 +110,13 @@ module.exports = class UrlInputProcessor {
             filter(img => !!img.src),
             filter(img => !img.src.startsWith("data:image")), //can stay as is in html. No need to do anything
 
-            // distinct(img => img.src), // FIXME: distinct but must subscibe to all (change src in all <img>s)
+            distinct(img => img.src), // FIXME: distinct but must subscibe to all (change src in all <img>s)
             flatMap(img => (axios.get(img.src, {
                 responseType: 'stream',
                 // httpAgent: faldom.serialize()se
-            })).then(resp => ({ newSrc: this.extractFilename(img.src), img, imgStream: resp.data, }))),
+            })).then(resp => (
+                { newSrc: this.extractFilename(img.src), img, imgStream: resp.data, }))
+            ),
             retry(3),
             catchError(err =>
                 console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
