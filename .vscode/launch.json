@@ -18,6 +18,17 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Launch debug-1",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run-script",
+                "debug-1"
+            ],
+            "port": 9229
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Launch Program",
             "program": "${workspaceFolder}/src/app.js",
             "runtimeExecutable": "${workspaceRoot}/node.sh"
