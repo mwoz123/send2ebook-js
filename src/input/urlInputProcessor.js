@@ -65,7 +65,7 @@ module.exports = class UrlInputProcessor {
                     }
                 }),
                 map(obj => ({
-                    ...obj, data: this.updateImgUrls(obj.data)
+                    ...obj, data: this.updateImagesSrcAndRemoveScripts(obj.data)
                 })),
                 // tap(console.log)
             )
@@ -84,11 +84,15 @@ module.exports = class UrlInputProcessor {
         return chapterDataSubject;
     }
 
-    updateImgUrls(html) { //TODO check if needed as the observables are reordered
+    updateImagesSrcAndRemoveScripts(html) { 
         const dom = new JSDOM(html);
-        const imgs = dom.window.document.querySelectorAll("img");
+        const scripts = dom.window.document.querySelectorAll("script");
+        for(let script of scripts.values()) {
+            script.remove();
+        }
+        const imgs = dom.window.document.querySelectorAll("img"); 
         for (let img of imgs.values()) {
-            img.src = this.extractFilename(img.src)
+            img.src = this.extractFilename(img.src); //TODO check if needed as the observables are reordered
         }
         return dom.serialize();
     }
