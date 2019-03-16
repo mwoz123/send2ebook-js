@@ -19,11 +19,14 @@ module.exports = class ToEpubConverter {
         //     flatMap(data=> data.forEach())
         // )
 
+        this.ifSingleUrlThenUseHtmlTitleAsFilename(epubData);
+
+        const epub = new Streampub({ title: epubData.title, author: epubData.author });
+
+        epub.pipe(writeableStream);
+
         return new Promise(resole => {
 
-            const epub = new Streampub({ title: epubData.title });
-            epub.setAuthor(epubData.author);
-            epub.pipe(writeableStream);
 
             epubData.forEach((chapterData, i, chapterArray) => {
 
@@ -50,5 +53,15 @@ module.exports = class ToEpubConverter {
     finishProcessing(epub, resole, writeableStream) {
         epub.end();
         resole(writeableStream);
+    }
+
+
+    ifSingleUrlThenUseHtmlTitleAsFilename(ebookData) {
+        ebookData.title = ebookData.title || (ebookData.length === 1 ? ebookData[0].title : this.titleFromDate())
+    }
+
+
+    titleFromDate() {
+        return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
     }
 }

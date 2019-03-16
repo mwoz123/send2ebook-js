@@ -14,18 +14,16 @@ module.exports = class Send2Ebook {
 
   async process([...urls], outputname) {
 
-    const errors = new Map();
-
     const urlInputProcessor = new UrlInputProcessor();
-    const chapterDataSubject$ = urlInputProcessor.gatherEbookData(urls, errors);
+    const chapterDataSubject$ = urlInputProcessor.gatherEbookData(urls);
+
     chapterDataSubject$.pipe(
       toArray(),
     ).subscribe(epubData => {
-      // errors.forEach((err, url) => console.error(`Error: '${err}' occured for url: ${url}`));
+
+      epubData.title = outputname;
 
       if (epubData.length > 0) {
-
-        this.obtainTitle(outputname, epubData);
 
         this.convertToEpubAndSaveToFtp(epubData);
       } else {
@@ -34,13 +32,6 @@ module.exports = class Send2Ebook {
     });
   }
 
-  obtainTitle(outputname, epubData) {
-    epubData.title = outputname || epubData.title || this.titleFromDate();
-  }
-
-  titleFromDate() {
-    return new Date().toISOString().substr(0, 19).replace("T", "_").replace(/[:]/gi, ".");
-  }
 
   async convertToEpubAndSaveToFtp(epubData) {
 

@@ -18,7 +18,18 @@ module.exports = class UrlInputProcessor {
         const chapterDataSubject = new Subject();
 
         let i = 0;
+        // from(urls).pipe(
+        //     zip(
+        //         flatMap(u => axios.get(u)), //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
+        //         retry(3),
+        //         catchError(err =>
+        //             console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
+        //         ),
+        //         map(resp => resp.data),
+        //     )
+        // ).subscribe(console.log)
         urls.forEach(url => {
+
             console.log(`Processing: ${url}`);
             const url$ = of(url);
             const responseData$ = url$.pipe(
@@ -27,43 +38,37 @@ module.exports = class UrlInputProcessor {
                 catchError(err =>
                     console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
                 ),
+                filter(resp => !!resp),
+                filter(resp => !!resp.data),
                 map(resp => resp.data),
 
             );
 
-            const dom$ = responseData$.pipe(
-                map(data => new JSDOM(data))
-            )
-            const title$ = dom$.pipe(
+            const title$ = responseData$.pipe(
+                map(data => new JSDOM(data)),
                 map(dom => dom.window.document.title),
             )
-            // this.ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle);  //TODO move it to send2ebook.js
 
 
             const sanitarized$ = this.sanitarizeData(url$, responseData$);
 
             const imgs$ = this.addAdditionalContent(sanitarized$)
-                .pipe(tap(
-                    imgData => imgData.img.src = imgData.newSrc
-                ),
+                .pipe(
+                    tap(
+                        imgData => imgData.img.src = imgData.newSrc),
                     tap(
                         imgData => imgData.img.newSrc = imgData.newSrc
                     ),
                     toArray())
 
             const chapterData$ = sanitarized$.pipe(
-                // tap(e => console.log("BEFOR: " + e)),
-                zip(title$, url$, imgs$
-                ),
-                // tap(e => console.log("AFTER: " + e)),
-                map(arr => {
-                    return {
-                        title: arr[1],
-                        extraElements: arr[3],
-                        source: arr[2],
-                        data: arr[0],
-                    }
-                }),
+                zip(title$, url$, imgs$),
+                map(arr => ({
+                    title: arr[1],
+                    extraElements: arr[3],
+                    source: arr[2],
+                    data: arr[0],
+                })),
                 map(obj => ({
                     ...obj, data: this.updateImagesSrcAndRemoveScripts(obj.data)
                 })),
@@ -84,13 +89,13 @@ module.exports = class UrlInputProcessor {
         return chapterDataSubject;
     }
 
-    updateImagesSrcAndRemoveScripts(html) { 
+    updateImagesSrcAndRemoveScripts(html) {
         const dom = new JSDOM(html);
         const scripts = dom.window.document.querySelectorAll("script");
-        for(let script of scripts.values()) {
+        for (let script of scripts.values()) {
             script.remove();
         }
-        const imgs = dom.window.document.querySelectorAll("img"); 
+        const imgs = dom.window.document.querySelectorAll("img");
         for (let img of imgs.values()) {
             img.src = this.extractFilename(img.src); //TODO check if needed as the observables are reordered
         }
@@ -114,8 +119,6 @@ module.exports = class UrlInputProcessor {
             catchError(err =>
                 console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
             ),
-            // tap(e =>
-            //     console.log(e)),
         )
 
     }
@@ -125,12 +128,6 @@ module.exports = class UrlInputProcessor {
         return url.replace(/^.*[\\\/]/, '').replace(/[?].+/, "");
     }
 
-
-    ifNoOutputnameAndSingleUrlThenUseHtmlTitleAsFilename(urls, ebookData, docTitle) {
-        if (urls.length == 1) {
-            ebookData.title = docTitle;
-        }
-    }
 
 
     sanitarizeData(url$, response$) {
