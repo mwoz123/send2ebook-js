@@ -117,45 +117,11 @@ module.exports = class UrlInputProcessor {
             // tap(e =>
             //     console.log(e)),
         )
-        // .subscribe(
-        //     e => {
-        //         console.log(e)
-        //         // e.img.oldSrc = e.img.src;
-        //         e.img.src = this.extractFilename(e.img.src);
-        //         // console.log(dom.si);
-        //         chapterImgSubject.next(e);
-        //     },
-        //     console.error,
-        //     () => {
-        //         chapterImgSubject.complete();
-        //         // console.log("complete img \n" + dom.serialize());
-        //         ;
 
-
-        //         // const imgs = dom.window.document.querySelectorAll("img")
-        //         // from(imgs).pipe(
-        //         //     map(img => img.src),
-        //         //     groupBy(img => img),
-        //         //     // groupBy(img=> img.src),
-
-        //         //     mergeMap(group => group.pipe(toArray()))
-        //         // ).subscribe(console.log)
-        //     })
-
-        // },
-        // console.err,
-        //             () => {
-        // console.log("completed Chapter data");
-
-        // }
-        // );
-        // return chapterImgSubject;
     }
 
 
     extractFilename(url) {
-        // const path = require('path');
-        // return path.basename(url);
         return url.replace(/^.*[\\\/]/, '').replace(/[?].+/, "");
     }
 

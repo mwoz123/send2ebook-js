@@ -32,8 +32,6 @@ module.exports = class ToEpubConverter {
                 if (chapterData.extraElements.length > 0) {
 
                     chapterData.extraElements.forEach(({ newSrc, imgStream }, j, array) => {
-                        // const extraEntiresArray = Array.from(chapterData.extraElements);
-                        // extraEntiresArray.forEach(([key, value], j, array) => {
 
                         epub.write(Streampub.newFile(newSrc, imgStream))
 
@@ -45,7 +43,6 @@ module.exports = class ToEpubConverter {
                 } else if (i + 1 === chapterArray.length) {
                     this.finishProcessing(epub, resole, writeableStream);
                 }
-
             });
         });
     }
