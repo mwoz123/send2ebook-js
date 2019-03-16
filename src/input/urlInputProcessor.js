@@ -13,13 +13,10 @@ const { tap, map, flatMap, combineLatest, zip, concatMap, retry, switchMap, skip
 module.exports = class UrlInputProcessor {
 
 
-    gatherEbookData(urls, errors) {
+    gatherEbookData(urls) {
 
         const chapterDataSubject = new Subject();
-        const ebookData = {
-            author: "Send2Ebook",
-            content: []
-        }
+
         let i = 0;
         urls.forEach(url => {
             console.log(`Processing: ${url}`);
@@ -45,19 +42,32 @@ module.exports = class UrlInputProcessor {
 
             const sanitarized$ = this.sanitarizeData(url$, responseData$);
 
-            const imgs$ = this.addAdditionalContent(sanitarized$);
+            const imgs$ = this.addAdditionalContent(sanitarized$)
+                .pipe(tap(
+                    imgData => imgData.img.src = imgData.newSrc
+                ),
+                    tap(
+                        imgData => imgData.img.newSrc = imgData.newSrc
+                    ),
+                    toArray())
 
             const chapterData$ = sanitarized$.pipe(
-                zip(title$, url$,
-                    imgs$.pipe(toArray)),
+                // tap(e => console.log("BEFOR: " + e)),
+                zip(title$, url$, imgs$
+                ),
+                // tap(e => console.log("AFTER: " + e)),
                 map(arr => {
                     return {
-                        data: arr[0],
                         title: arr[1],
+                        extraElements: arr[3],
                         source: arr[2],
-                        extraElements: arr[3]
+                        data: arr[0],
                     }
                 }),
+                map(obj => ({
+                    ...obj, data: this.updateImgUrls(obj.data)
+                })),
+                // tap(console.log)
             )
 
             chapterData$.subscribe( //TODO check if can be replace by chapterData$.subscribe(chapterDataSubject) or reverse
@@ -74,63 +84,68 @@ module.exports = class UrlInputProcessor {
         return chapterDataSubject;
     }
 
+    updateImgUrls(html) { //TODO check if needed as the observables are reordered
+        const dom = new JSDOM(html);
+        const imgs = dom.window.document.querySelectorAll("img");
+        for (let img of imgs.values()) {
+            img.src = this.extractFilename(img.src)
+        }
+        return dom.serialize();
+    }
+
     addAdditionalContent(sanitarized$) {
-        const dom$ = sanitarized$.pipe(
-            map(dom => new JSDOM(dom))
+
+        return sanitarized$.pipe(
+            map(html => new JSDOM(html)),
+            switchMap(dom => from(dom.window.document.querySelectorAll("img"))),
+            filter(img => !!img.src),
+            filter(img => !img.src.startsWith("data:image")), //can stay as is in html. No need to do anything
+
+            // distinct(img => img.src), // FIXME: distinct but must subscibe to all (change src in all <img>s)
+            flatMap(img => (axios.get(img.src, {
+                responseType: 'stream',
+                // httpAgent: faldom.serialize()se
+            })).then(resp => ({ newSrc: this.extractFilename(img.src), img, resp: resp.data, }))),
+            retry(3),
+            catchError(err =>
+                console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
+            ),
+            // tap(e =>
+            //     console.log(e)),
         )
+        // .subscribe(
+        //     e => {
+        //         console.log(e)
+        //         // e.img.oldSrc = e.img.src;
+        //         e.img.src = this.extractFilename(e.img.src);
+        //         // console.log(dom.si);
+        //         chapterImgSubject.next(e);
+        //     },
+        //     console.error,
+        //     () => {
+        //         chapterImgSubject.complete();
+        //         // console.log("complete img \n" + dom.serialize());
+        //         ;
 
-        const chapterImgSubject = new Subject();
 
-        dom$.subscribe(dom => {
-            const imgs$ = from(dom.window.document.querySelectorAll("img"))
-            const filteredImages$ = imgs$.pipe(
-                filter(img => !!img.src),
-                filter(img => !img.src.startsWith("data:image")), //can stay as is in html. No need to do anything
+        //         // const imgs = dom.window.document.querySelectorAll("img")
+        //         // from(imgs).pipe(
+        //         //     map(img => img.src),
+        //         //     groupBy(img => img),
+        //         //     // groupBy(img=> img.src),
 
-            );
-            filteredImages$.pipe(
-                // distinct(img => img.src), // FIXME: distinct but must subscibe to all (change src in all <img>s)
-                flatMap(img => (axios.get(img.src, {
-                    responseType: 'stream',
-                    // httpAgent: false
-                })).then(resp => ({ img, resp: resp.data }))),
-                retry(3),
-                catchError(err =>
-                    console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
-                ),
-                // tap(e =>
-                //     console.log(e)),
-            ).pipe().subscribe(
-                e => {
-                    e.img.oldSrc = e.img.src;
-                    e.img.src = this.extractFilename(e.img.src);
-                    // console.log(dom.si);
-                    chapterImgSubject.next(e);
-                },
-                console.error,
-                () => { 
-                    chapterImgSubject.complete(); 
-                    console.log("complete img");
-            
+        //         //     mergeMap(group => group.pipe(toArray()))
+        //         // ).subscribe(console.log)
+        //     })
 
-        // const imgs = dom.window.document.querySelectorAll("img")
-        // from(imgs).pipe(
-        //     map(img => img.src),
-        //     groupBy(img => img),
-        //     // groupBy(img=> img.src),
+        // },
+        // console.err,
+        //             () => {
+        // console.log("completed Chapter data");
 
-        //     mergeMap(group => group.pipe(toArray()))
-        // ).subscribe(console.log)
-            })
-
-        },
-            console.err,
-            () => {
-                console.log("completed Chapter data");
-
-            }
-        );
-        return chapterImgSubject;
+        // }
+        // );
+        // return chapterImgSubject;
     }
 
 
