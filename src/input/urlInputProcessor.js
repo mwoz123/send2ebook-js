@@ -105,7 +105,7 @@ module.exports = class UrlInputProcessor {
             flatMap(img => (axios.get(img.src, {
                 responseType: 'stream',
                 // httpAgent: faldom.serialize()se
-            })).then(resp => ({ newSrc: this.extractFilename(img.src), img, resp: resp.data, }))),
+            })).then(resp => ({ newSrc: this.extractFilename(img.src), img, imgStream: resp.data, }))),
             retry(3),
             catchError(err =>
                 console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
