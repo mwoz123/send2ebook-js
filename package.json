@@ -10,8 +10,8 @@
     "node": ">=0.10"
   },
   "scripts": {
-    "start": "node ./src/app.js",
-    "debug": "node --inspect --inspect-brk ./src/app.js"
+    "start": "node ./src/example.js",
+    "debug": "node --inspect --inspect-brk ./src/example.js"
   },
   "dependencies": {
     "absolutify": "~0.1.0",

@@ -1,20 +1,21 @@
 const FtpStorage = require("./output/ftp/ftpStorage")
 const ToEpubConverter = require('./converter/toEpubConverter');
-const DuplexStream = require('./model/duplexStream');
+const DuplexStream = require('../model/duplexStream');
 const UrlInputProcessor = require('./input/urlInputProcessor');
 const { toArray } = require("rxjs/operators");
+const NameSanitarizer = require("../util/nameSanitarizer");
+
+
 module.exports = class Send2Ebook {
 
-  constructor({ host, user, pass, port = 21, folder = "/" }) {
-    this.connectionSettings = {
-      host, user, password: pass, port, folder
-    }
+  constructor(options) {
+    this.options = options;
   }
 
 
   async process([...urls], outputname) {
 
-    const urlInputProcessor = new UrlInputProcessor();
+    const urlInputProcessor = new UrlInputProcessor(this.options);
     const chapterDataSubject$ = urlInputProcessor.gatherEbookData(urls);
 
     chapterDataSubject$.pipe(
@@ -27,7 +28,7 @@ module.exports = class Send2Ebook {
 
         this.convertToEpubAndSaveToFtp(epubData);
       } else {
-        throw ("Can't create Epub without context.");
+        console.error("Can't create Epub without context.");
       }
     });
   }
@@ -37,30 +38,28 @@ module.exports = class Send2Ebook {
 
     const duplexStream = new DuplexStream();
     try {
-      const converter = new ToEpubConverter();
+      const converter = new ToEpubConverter(this.options);
       await converter.convert(epubData, duplexStream);
 
-      const fileName = this.sanitarizeName(epubData.title) + epubData.fileExt;
-      await this.saveOutput(duplexStream, fileName);
+      const fileName = new NameSanitarizer().sanitarizeName(epubData.title) + epubData.fileExt;
+
+      // await this.saveOutput(duplexStream, fileName);
+      const LocalFileStorage = require("./output/file/fileStorage")
+      new LocalFileStorage().save(duplexStream, fileName);
     }
     catch (err) {
       throw err;
     }
   }
 
-  sanitarizeName(str) {
-    return str.replace(/[^\w\s]/gm, "_");
-  }
+
 
   async saveOutput(stream, fileName) {
-    console.log("saving to ftp " + this.connectionSettings.host);
-    const remotePath = this.connectionSettings.folder + "/" + fileName;
 
-    const ftpStorage = new FtpStorage()
+    const ftpStorage = new FtpStorage(this.options)
     try {
-      await ftpStorage.connect(this.connectionSettings)
-      await ftpStorage.save(stream, remotePath)
-
+      await ftpStorage.connect()
+      await ftpStorage.save(stream, fileName)
     }
     catch (err) {
       throw err;

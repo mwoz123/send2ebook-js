@@ -108,8 +108,7 @@ module.exports = class UrlInputProcessor {
             map(html => new JSDOM(html)),
             switchMap(dom => from(dom.window.document.querySelectorAll("img"))),
             filter(img => !!img.src),
-            filter(img => !img.src.startsWith("data:image")), //can stay as is in html. No need to do anything
-
+            filter(img => img.src.startsWith("http") || img.src.startsWith("www")),
             distinct(img => img.src), // FIXME: distinct but must subscibe to all (change src in all <img>s)
             flatMap(img => (axios.get(img.src, {
                 responseType: 'stream',

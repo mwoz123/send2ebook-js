@@ -18,6 +18,6 @@ module.exports = class DuplexStream extends stream.Duplex {
     }
 
     _final() {
-        console.log(`stream complete!`)
+        console.log(`streaming data complete!`)
     }
 }
