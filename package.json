@@ -1,9 +1,9 @@
 {
   "name": "send2ebook",
   "preferGlobal": false,
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": "<mwoz123@github.com>",
-  "description": "todo",
+  "description": "Converts urls to EPUB format and stores to ftp/local filesystem",
   "license": "LGPL",
   "main": "send2ebook.js",
   "engines": {

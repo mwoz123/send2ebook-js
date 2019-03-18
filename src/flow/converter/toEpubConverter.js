@@ -1,23 +1,16 @@
-const Streampub = require('streampub')
+const Streampub = require('streampub');
+const DuplexStream = require('../../model/duplexStream');
 const { of, Observable, from, bindCallback, Subject } = require("rxjs");
 const { tap, map, flatMap, combineLatest, zip, concatMap, retry, switchMap, skip,
     distinct, filter, toArray, catchError, concat, groupBy, mergeMap } = require("rxjs/operators");
 
 module.exports = class ToEpubConverter {
 
-    convert(epubData, writeableStream) {
+    convert(epubData) {
+
+        const writeableStream = new DuplexStream();
         epubData.fileExt = ".epub";
         epubData.author = "Send2Ebook";
-
-
-        // from(epubData).pipe(
-        //     map(data => ({
-        //         data,
-        //         epub: new Streampub({ title: data.title, author: data.author })
-        //     })),
-        //     tap(data => data.epub.pipe(writeableStream)),
-        //     flatMap(data=> data.forEach())
-        // )
 
         this.ifSingleUrlThenUseHtmlTitleAsFilename(epubData);
 
@@ -48,6 +41,15 @@ module.exports = class ToEpubConverter {
                 }
             });
         });
+                // from(epubData).pipe(
+        //     map(data => ({
+        //         data,
+        //         epub: new Streampub({ title: data.title, author: data.author })
+        //     })),
+        //     tap(data => data.epub.pipe(writeableStream)),
+        //     flatMap(data=> data.forEach())
+        // )
+
     }
 
     finishProcessing(epub, resole, writeableStream) {

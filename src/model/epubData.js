@@ -1,5 +1,7 @@
 
 
+
+//TO BE USED OR REMOVED. CURRENTLY NOT USED
 module.exports = class EpubData {
 
     title ="";

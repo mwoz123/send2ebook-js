@@ -18,16 +18,7 @@ module.exports = class UrlInputProcessor {
         const chapterDataSubject = new Subject();
 
         let i = 0;
-        // from(urls).pipe(
-        //     zip(
-        //         flatMap(u => axios.get(u)), //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
-        //         retry(3),
-        //         catchError(err =>
-        //             console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
-        //         ),
-        //         map(resp => resp.data),
-        //     )
-        // ).subscribe(console.log)
+
         urls.forEach(url => {
 
             console.log(`Processing: ${url}`);
@@ -87,6 +78,16 @@ module.exports = class UrlInputProcessor {
         });
 
         return chapterDataSubject;
+                // from(urls).pipe(
+        //     zip(
+        //         flatMap(u => axios.get(u)), //TODO add {auth} //TODO check if cannot be replaced by JSDOM.from(url)
+        //         retry(3),
+        //         catchError(err =>
+        //             console.error(`Error while requesting '${err.request._currentUrl}'. Exception: ${err.message}`)
+        //         ),
+        //         map(resp => resp.data),
+        //     )
+        // ).subscribe(console.log)
     }
 
     updateImagesSrcAndRemoveScripts(html) {

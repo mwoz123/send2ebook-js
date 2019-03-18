@@ -6,7 +6,7 @@ const connectionSettings = {
     host: "test.ftp.com",
     port: 21, // defaults to 21
     user: "test",
-    pass: "abcd",
+    password: "abcd",
     folder: "/"
 }
 

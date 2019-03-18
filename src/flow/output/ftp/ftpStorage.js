@@ -9,8 +9,7 @@ module.exports = class FtpStorage {
     }
 
     async connect() {
-
-        await this.ftpClient.access(connectionSettings)
+        await this.ftpClient.access(this.connectionSettings)
     }
 
     async save(stream, fileName) {
@@ -20,7 +19,7 @@ module.exports = class FtpStorage {
 
         await this.ftpClient.upload(stream, remotePath).then(
             () => console.log('File succesfully send to ftp '),
-            err => console.error("Coundn't save file to FTP : " + err))
+            err => console.error("Couldn't save file to FTP : " + err))
 
     }
 
