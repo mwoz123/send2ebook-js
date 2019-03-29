@@ -1,4 +1,4 @@
-const Send2Ebook = require("./flow/send2ebook");
+const Send2Ebook = require("./src/send2ebook");
 
 
 
@@ -13,7 +13,7 @@ const connectionSettings = {
 const options = { connectionSettings }
 
 
- const urls = ["https://www.learnrxjs.io" ,"https://www.rmf24.pl/fakty/swiat/news-wenezuela-pograzona-w-ciemnosciach-kraj-bez-pradu,nId,2873306",
+ const urls = ["https://www.learnrxjs.io" ,"https://www.codementor.io/edaxfilanderucleshernandez/building-a-utility-class-as-a-module-npm-cnsge9a5g",
  ];
 
 const s2e = new Send2Ebook(options);

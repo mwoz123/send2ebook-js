@@ -1,17 +1,18 @@
 {
   "name": "send2ebook",
   "preferGlobal": false,
-  "version": "1.5.1",
+  "version": "1.5.2-2",
   "author": "<mwoz123@github.com>",
+  "keywords": ["webpage", "article", "url", "convert", "epub", "stream", "ftp", "file"],
   "description": "Converts urls to EPUB format and stores to ftp/local filesystem",
   "license": "LGPL",
-  "main": "send2ebook.js",
+  "main": "index.js",
   "engines": {
     "node": ">=0.10"
   },
   "scripts": {
-    "start": "node ./src/example.js",
-    "debug": "node --inspect --inspect-brk ./src/example.js"
+    "start": "node ./example.js",
+    "debug": "node --inspect --inspect-brk ./example.js"
   },
   "dependencies": {
     "absolutify": "~0.1.0",

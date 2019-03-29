@@ -1,9 +1,9 @@
-const FtpStorage = require("./output/ftp/ftpStorage")
+const FtpStorage = require("./flow/output/ftp/ftpStorage")
 // const LocalFileStorage = require("./output/file/fileStorage")
-const ToEpubConverter = require('./converter/toEpubConverter');
-const UrlInputProcessor = require('./input/urlInputProcessor');
+const ToEpubConverter = require('./flow/converter/toEpubConverter');
+const UrlInputProcessor = require('./flow/input/urlInputProcessor');
 const { toArray } = require("rxjs/operators");
-const NameSanitarizer = require("../util/nameSanitarizer");
+const NameSanitarizer = require("./util/nameSanitarizer");
 
 
 module.exports = class Send2Ebook {
